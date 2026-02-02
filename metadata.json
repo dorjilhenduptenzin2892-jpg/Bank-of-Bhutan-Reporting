@@ -1,0 +1,5 @@
+{
+  "name": "BANK Of Bhutan Acquiring Reporting",
+  "description": "A bank-grade transaction reporting tool for Bank of Bhutan that processes Excel data and generates professional POS/ATM management reports.",
+  "requestFramePermissions": []
+}
