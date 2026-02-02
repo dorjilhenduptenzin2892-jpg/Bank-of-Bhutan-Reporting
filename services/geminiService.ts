@@ -1,73 +1,81 @@
 
-import { GoogleGenAI } from "@google/genai";
 import { ReportData } from "../types";
+import { BUSINESS_CODE_DICTIONARY, TECHNICAL_CODE_DICTIONARY, REASON_NORMALIZATION } from '../constants';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
-export async function generateTypicalCause(reason: string): Promise<string> {
+async function callServer(type: 'cause' | 'narrative', body: any): Promise<string | null> {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Provide a professional, neutral, single-sentence banking explanation for the following ${process.env.REPORT_TYPE || 'POS/ATM'} transaction decline reason: "${reason}". Output only the sentence.`,
+    const res = await fetch(`/api/genai?type=${type}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
-    return response.text?.trim() || "Transaction declined due to a specific business or technical rule set by the issuer.";
-  } catch (error) {
-    console.error("Gemini Typical Cause error:", error);
-    return "The transaction was declined by the processing network for administrative reasons.";
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.text || null;
+  } catch (err) {
+    console.warn('Server AI call failed', err);
+    return null;
   }
 }
 
+export async function generateTypicalCause(reason: string): Promise<string> {
+  const server = await callServer('cause', { reason });
+  if (server) return server;
+  if (!reason || !reason.trim()) return 'The transaction was declined by the processing network for administrative reasons.';
+  return `Decline reason: ${reason.trim()}.`;
+}
+
 export async function generateNarrative(data: ReportData): Promise<string> {
-  const prompt = `
-    Generate a professional bank-grade management analysis for an ${data.reportType} Acquiring Service report.
-    Detected Date Range: ${data.dateRange}
-    Success Rate: ${data.successRate.toFixed(2)}%
-    Failure Rate: ${data.failureRate.toFixed(2)}%
-    
-    Top Business Failures:
-    ${data.businessFailures.map(f => `- ${f.description} (${f.volume} txns)`).join('\n')}
-    
-    Top Technical Failures:
-    ${data.technicalFailures.map(f => `- ${f.description} (${f.volume} txns)`).join('\n')}
+  const server = await callServer('narrative', { data });
+  if (server) return server;
 
-    Structure Requirements:
-    1. Output a narrative consisting of two distinct sections.
-    2. Section 1 Heading: "Business Decline Analysis"
-       - Use a numbered list (1., 2., 3., etc.) for points.
-       - Summarize major contributors.
-       - Explicitly mention and highlight key response names (e.g., DO NOT HONOUR, INSUFFICIENT FUNDS) in uppercase.
-    3. Section 2 Heading: "Technical Decline Analysis"
-       - Use a numbered list (1., 2., 3., etc.) for points.
-       - Summarize technical stability.
+  // Concise, professional two-section summary.
+  const totalTx = data.totalTransactions || 0;
+  const estFailures = Math.max(1, Math.round((data.failureRate / 100) * totalTx));
 
-    Strict Rules:
-    - Formal banking tone.
-    - No emojis.
-    - No casual language.
-    - NO RECOMMENDATIONS.
-    - NO MARKDOWN BOLDING. DO NOT USE DOUBLE ASTERISKS (**).
-    - NO ASTERISKS (*) or DASHES (-) for lists. Use only numbers (1., 2., 3.).
-    - Highlight: Dominant decline reasons, volume trends, and ${data.reportType} system stability.
-    - Output only the analysis text.
-  `;
+  const sum = (arr: { volume?: number }[] = []) => arr.reduce((s, v) => s + (v.volume || 0), 0);
+  const businessSum = sum(data.businessFailures);
+  const techSum = sum(data.technicalFailures);
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: prompt,
-      config: {
-        thinkingConfig: { thinkingBudget: 2000 }
-      }
-    });
-    
-    let text = response.text?.trim() || "Analysis pending manual review.";
-    
-    // Safety cleanup: remove any asterisks Gemini might have included
-    text = text.replace(/\*\*/g, '').replace(/^\s*[\*\-]\s/gm, '1. ');
-    
-    return text;
-  } catch (error) {
-    console.error("Gemini Narrative error:", error);
-    return "An automated analysis could not be generated at this time.";
-  }
+  const topB = (data.businessFailures || []).slice(0, 3);
+  const topT = (data.technicalFailures || []).slice(0, 3);
+
+  const fmtPct = (v: number) => `${((v / Math.max(1, estFailures)) * 100).toFixed(1)}%`;
+
+  const formatNames = (arr: { description?: string }[]) => {
+    if (!arr || arr.length === 0) return 'N/A';
+    return arr.map(a => {
+      const key = a.description?.toLowerCase().trim() || '';
+      return (REASON_NORMALIZATION[key]?.normalizedDescription || a.description || 'Unknown').toUpperCase();
+    }).join(', ');
+  };
+
+  const b1 = `1. Dominant contributors: ${formatNames(topB)}.`;
+  const b2 = `2. Impact: Top business categories = ${businessSum} txns (${fmtPct(businessSum)}) of estimated failures. Success ${data.successRate.toFixed(2)}%, Failure ${data.failureRate.toFixed(2)}% (${data.dateRange}).`;
+  const b3 = (() => {
+    const names = formatNames(topB);
+    if (names.includes('INSUFFICIENT FUNDS') || names.includes('DO NOT HONOUR')) return '3. Summary: Issuer-level declines are prominent.';
+    if (businessSum > estFailures * 0.6) return '3. Summary: Business declines account for the majority of failures.';
+    return '3. Summary: No single dominant business pattern detected.';
+  })();
+
+  const t1 = `1. Dominant technical contributors: ${formatNames(topT)}.`;
+  const t2 = `2. Stability: Technical issues = ${techSum} txns (${fmtPct(techSum)}) of estimated failures, indicating ${techSum < estFailures * 0.1 ? 'generally stable' : 'periodic instability'}.`;
+  const t3 = techSum > 0 ? (techSum > estFailures * 0.2 ? '3. Summary: Technical problems are a notable source of failures.' : '3. Summary: Technical issues present but not dominant.') : '3. Summary: No significant technical pattern.';
+
+  const note = 'Generated locally (deterministic summary). Enable server AI for extended narratives.';
+
+  return [
+    'Business Decline Analysis',
+    b1,
+    b2,
+    b3,
+    '',
+    'Technical Decline Analysis',
+    t1,
+    t2,
+    t3,
+    '',
+    note,
+  ].join('\n\n');
 }

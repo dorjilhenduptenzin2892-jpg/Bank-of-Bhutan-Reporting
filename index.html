@@ -7,21 +7,7 @@
     <title>BANK Of Bhutan Acquiring Reporting</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react-dom": "https://esm.sh/react-dom@18.2.0",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
-        "@google/genai": "https://esm.sh/@google/genai",
-        "xlsx": "https://esm.sh/xlsx",
-        "docx": "https://esm.sh/docx",
-        "file-saver": "https://esm.sh/file-saver",
-        "recharts": "https://esm.sh/recharts?external=react,react-dom"
-      }
-    }
-    </script>
+    <!-- Removed importmap to let Vite bundle dependencies correctly for production. -->
     <style>
         body, html, #root {
             height: 100%;
@@ -39,7 +25,6 @@
 </head>
 <body>
     <div id="root"></div>
-    <script type="module" src="index.tsx"></script>
-<script type="module" src="/index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
