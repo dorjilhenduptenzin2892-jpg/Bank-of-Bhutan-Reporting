@@ -16,6 +16,7 @@ export interface Insight {
 
 /**
  * Generate insights from decline patterns and responsibility data
+ * Uses professional banking language and neutral tone
  */
 export function generateInsights(
   reportData: ReportData,
@@ -28,161 +29,119 @@ export function generateInsights(
   const totalFailures = failures.length + techFailures.length;
   const totalVolume = responsibility.total_decline_volume;
 
-  // 1. ISSUER-DRIVEN INSIGHTS
+  // 1. ISSUER-DRIVEN INSIGHTS - Professional tone
   if (responsibility.issuer_percent > 50) {
     insights.push({
-      title: 'Issuer-Driven Authorization Environment',
+      title: 'Issuer Authorization Environment',
       description:
-        'The majority of declines are driven by issuer-side authorization decisions, which is typical in international and domestic card-acquiring environments. This reflects issuer fraud controls, velocity rules, and account status management.',
+        `Issuer-side authorization decisions account for ${responsibility.issuer_percent.toFixed(1)}% of decline attribution, reflecting the significant role of issuer fraud controls, account verification policies, and velocity management in transaction processing outcomes. This distribution is consistent with typical card-acquiring environments.`,
+      severity: 'Low',
+      action_area: 'Issuer Coordination'
+    });
+  } else if (responsibility.issuer_percent > 35) {
+    insights.push({
+      title: 'Balanced Issuer and Ecosystem Factors',
+      description:
+        `Issuer authorization decisions account for ${responsibility.issuer_percent.toFixed(1)}% of declines, with additional contributions from cardholder and network factors. This balanced distribution reflects typical acquiring environment dynamics.`,
       severity: 'Low',
       action_area: 'Issuer Coordination'
     });
   }
 
-  // 2. TECHNICAL STABILITY INSIGHTS
+  // 2. TECHNICAL STABILITY INSIGHTS - Neutral language
   const technicalPercent = (techFailures.reduce((s, f) => s + (f.volume || 0), 0) / Math.max(1, totalVolume)) * 100;
-  if (technicalPercent < 15) {
+  if (technicalPercent < 13) {
     insights.push({
-      title: 'Technical Decline Levels Within Normal Range',
-      description: `Technical declines account for ${technicalPercent.toFixed(1)}% of failures, indicating stable acquiring infrastructure and reliable host/network connectivity.`,
+      title: 'Technical Decline Levels Within Optimal Range',
+      description: `Technical declines account for ${technicalPercent.toFixed(1)}% of transaction failures, indicating stable acquiring infrastructure, reliable host connectivity, and effective network availability characteristics.`,
       severity: 'Low',
       action_area: 'Infrastructure Stability'
     });
-  } else if (technicalPercent >= 20 && technicalPercent < 35) {
+  } else if (technicalPercent >= 13 && technicalPercent < 24) {
     insights.push({
-      title: 'Elevated Technical Decline Activity',
-      description: `Technical declines represent ${technicalPercent.toFixed(1)}% of failures, suggesting potential configuration or connectivity optimization opportunities.`,
+      title: 'Technical Decline Activity Within Normal Parameters',
+      description: `Technical declines represent ${technicalPercent.toFixed(1)}% of transaction failures. Infrastructure operates within normal operational parameters with opportunities for optimization through continued monitoring and configuration enhancements.`,
+      severity: 'Low',
+      action_area: 'Technical Operations'
+    });
+  } else if (technicalPercent >= 24 && technicalPercent < 35) {
+    insights.push({
+      title: 'Technical Decline Activity Requiring Monitoring',
+      description: `Technical declines account for ${technicalPercent.toFixed(1)}% of transaction failures, indicating processing environment elements that benefit from enhanced operational monitoring and infrastructure optimization review.`,
       severity: 'Medium',
       action_area: 'Technical Operations'
     });
-  } else if (technicalPercent >= 35) {
+  } else {
     insights.push({
-      title: 'High Technical Decline Concentration',
-      description: `Technical declines account for ${technicalPercent.toFixed(1)}% of failures, indicating infrastructure or configuration issues requiring investigation.`,
+      title: 'Technical Decline Activity Requiring Review',
+      description: `Technical declines represent ${technicalPercent.toFixed(1)}% of transaction failures, indicating infrastructure and configuration elements requiring operational review and remediation planning.`,
       severity: 'High',
       action_area: 'Technical Operations'
     });
   }
 
-  // 3. CARDHOLDER BEHAVIOR INSIGHTS
+  // 3. CARDHOLDER BEHAVIOR INSIGHTS - Neutral, descriptive
   if (responsibility.cardholder_percent > 30) {
     insights.push({
-      title: 'Cardholder-Related Decline Patterns',
+      title: 'Cardholder Behavior and Account Status Factors',
       description:
-        'A significant share of declines reflects cardholder behavior and account status (e.g., insufficient funds, incorrect PIN, expired cards). This suggests customer education and awareness opportunities.',
+        `Cardholder-related factors represent ${responsibility.cardholder_percent.toFixed(1)}% of decline attribution, reflecting account status, authentication patterns, and transaction limit characteristics. These patterns indicate normal cardholder behavior in card-acquiring environments and suggest opportunities for customer engagement and education.`,
+      severity: 'Low',
+      action_area: 'Customer Communication'
+    });
+  } else if (responsibility.cardholder_percent > 15) {
+    insights.push({
+      title: 'Cardholder Factors as Secondary Decline Component',
+      description:
+        `Cardholder behavior and account factors account for ${responsibility.cardholder_percent.toFixed(1)}% of declines, including insufficient funds, authentication challenges, and card status. These represent normal operational characteristics.`,
       severity: 'Low',
       action_area: 'Customer Communication'
     });
   }
 
-  // 4. SPECIFIC DECLINE PATTERN INSIGHTS
+  // 4. SPECIFIC DECLINE PATTERN INSIGHTS - Descriptive, not evaluative
   if (failures.length > 0) {
     const topDecline = failures[0];
     const topEntry = getDeclineEntry(topDecline.description);
 
-    if (topEntry.category === 'Business' && topDecline.volume && totalVolume > 0) {
+    if (topEntry && topDecline.volume && totalVolume > 0) {
       const topPercent = (topDecline.volume / totalVolume) * 100;
-      if (topPercent > 25) {
+      if (topPercent > 20) {
         insights.push({
-          title: `${topDecline.description} Dominates Decline Profile`,
-          description: `"${topDecline.description}" represents ${topPercent.toFixed(1)}% of all declines. This is a primary focus area for coordination with issuers.`,
-          severity: topEntry.severity_score >= 4 ? 'High' : 'Medium',
+          title: `${topDecline.description} as Primary Decline Driver`,
+          description: `"${topDecline.description}" represents ${topPercent.toFixed(1)}% of decline volume, indicating this as a primary focus area for issuer coordination and authorization policy alignment.`,
+          severity: topEntry.severity_score >= 4 ? 'Medium' : 'Low',
           action_area: 'Issuer Coordination'
         });
       }
     }
   }
 
-  // 5. CHANNEL-SPECIFIC INSIGHTS
+  // 5. CHANNEL-SPECIFIC INSIGHTS - Professional, descriptive
   if (channelType === 'IPG') {
     const auth3DS = failures.find(f => f.description && f.description.toLowerCase().includes('3ds'));
-    const gatewayTimeout = failures.find(f => f.description && f.description.toLowerCase().includes('gateway'));
-
-    if (auth3DS && auth3DS.volume && (auth3DS.volume / totalVolume) * 100 > 10) {
+    const authFail = failures.find(f => f.description && f.description.toLowerCase().includes('authentication'));
+    if (auth3DS || authFail) {
       insights.push({
-        title: '3D Secure Authentication Challenges in IPG',
-        description:
-          'IPG transactions are experiencing notable 3D Secure authentication failures, suggesting customer experience or issuer configuration issues.',
-        severity: 'Medium',
-        action_area: 'IPG Integration'
-      });
-    }
-
-    if (gatewayTimeout && gatewayTimeout.volume && (gatewayTimeout.volume / totalVolume) * 100 > 5) {
-      insights.push({
-        title: 'Gateway Processing Timeouts Detected',
-        description:
-          'Transaction processing timeouts suggest network latency or gateway performance issues requiring infrastructure review.',
-        severity: 'Medium',
-        action_area: 'Gateway Operations'
-      });
-    }
-  }
-
-  if (channelType === 'ATM') {
-    const pinErrors = failures.find(f => f.description && f.description.toLowerCase().includes('pin'));
-    if (pinErrors && pinErrors.volume && (pinErrors.volume / totalVolume) * 100 > 15) {
-      insights.push({
-        title: 'High PIN-Related Decline Rate in ATM',
-        description:
-          'PIN entry errors represent a significant portion of ATM declines. Customer awareness on PIN security and entry procedures may reduce this rate.',
+        title: 'Internet Payment Gateway Authentication Patterns',
+        description: `IPG transactions demonstrate authentication challenges as a component of decline patterns, reflecting device compatibility, browser characteristics, and 3DS implementation dynamics typical in internet payment environments.`,
         severity: 'Low',
-        action_area: 'Customer Communication'
+        action_area: 'IPG Operations'
       });
     }
   }
 
-  // 6. EXTERNAL INFRASTRUCTURE INSIGHTS
-  if (responsibility.external_percent > 15) {
+  // 6. NETWORK FACTORS INSIGHT
+  if (responsibility.network_percent > 12) {
     insights.push({
-      title: 'External Infrastructure Factors',
-      description:
-        'External infrastructure issues (network, external service availability) account for a measurable share of declines. Coordination with network operators may optimize connectivity.',
-      severity: 'Medium',
+      title: 'Network and Scheme-Level Factor Contribution',
+      description: `Network and scheme-level factors contribute ${responsibility.network_percent.toFixed(1)}% to overall decline patterns, reflecting standard inter-bank processing dynamics and scheme coordination characteristics.`,
+      severity: 'Low',
       action_area: 'Network Coordination'
     });
   }
 
-  // 7. MERCHANT/INTEGRATION INSIGHTS
-  if (responsibility.merchant_percent > 20) {
-    insights.push({
-      title: 'Merchant Configuration and Integration Factors',
-      description:
-        'Merchant-side configuration and integration issues contribute notably to the decline profile. Terminal and POS integration standards should be reviewed.',
-      severity: 'Medium',
-      action_area: 'Merchant Management'
-    });
-  }
-
-  // 8. NETWORK-DRIVEN INSIGHTS
-  if (responsibility.network_percent > 20) {
-    insights.push({
-      title: 'Scheme-Level Network Factors',
-      description:
-        'Network and scheme-level factors (validation, routing, fraud controls) account for a material share of declines, reflecting industry-wide processing standards.',
-      severity: 'Low',
-      action_area: 'Network Monitoring'
-    });
-  }
-
-  // 9. SUCCESS RATE BENCHMARKING
-  if (reportData.successRate >= 98) {
-    insights.push({
-      title: 'Excellent Transaction Success Rate',
-      description: `Success rate of ${reportData.successRate.toFixed(2)}% indicates robust processing stability and healthy transaction throughput.`,
-      severity: 'Low',
-      action_area: 'Performance'
-    });
-  } else if (reportData.successRate < 93) {
-    insights.push({
-      title: 'Below-Average Transaction Success Rate',
-      description: `Success rate of ${reportData.successRate.toFixed(2)}% is below typical benchmarks, indicating potential system or coordination issues.`,
-      severity: 'High',
-      action_area: 'System Operations'
-    });
-  }
-
-  return insights;
+  return insights.slice(0, 8);
 }
 
 /**

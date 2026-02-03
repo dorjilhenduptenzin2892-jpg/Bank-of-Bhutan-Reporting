@@ -1,6 +1,7 @@
 /**
  * KPI Intelligence Engine - Main Orchestrator
  * Integrates all KPI components and produces comprehensive analysis reports
+ * Implements Tier-1 banking language standards and regulatory compliance
  */
 
 import { ReportData, ReportType } from '../../types';
@@ -9,6 +10,7 @@ import { generateInsights, prioritizeInsights, Insight } from './insightEngine';
 import { generateExecutiveSummary, ExecutiveSummary } from './executiveSummary';
 import { generateRecommendations, prioritizeRecommendations, Recommendation } from './recommendationEngine';
 import { analyzeChannelSpecificPatterns, ChannelIntelligence } from './channelLogic';
+import { ProfessionalReport, generateProfessionalReport } from './professionalReporting';
 
 /**
  * Complete KPI Intelligence Report
@@ -24,6 +26,7 @@ export interface KPIIntelligenceReport {
   channel_intelligence: ChannelIntelligence;
   recommendations: Recommendation[];
   summary_narrative: string;
+  professional_report: ProfessionalReport;
 }
 
 /**
@@ -45,7 +48,7 @@ export function analyzeKPIIntelligence(reportData: ReportData): KPIIntelligenceR
   const insights = prioritizeInsights(allInsights).slice(0, 5); // Top 5 insights
 
   // 4. Generate executive summary
-  const executiveSummary = generateExecutiveSummary(reportData, responsibility, insights, reportData.reportType);
+  const executiveSummary = generateExecutiveSummary(reportData, responsibility, insights, reportData.reportType, allRecommendations);
 
   // 5. Analyze channel-specific patterns
   const channelIntelligence = analyzeChannelSpecificPatterns(reportData, responsibility, reportData.reportType);
@@ -54,7 +57,16 @@ export function analyzeKPIIntelligence(reportData: ReportData): KPIIntelligenceR
   const allRecommendations = generateRecommendations(reportData, responsibility, reportData.reportType);
   const recommendations = prioritizeRecommendations(allRecommendations).slice(0, 5); // Top 5 recommendations
 
-  // 7. Generate summary narrative
+  // 7. Generate professional report
+  const professionalReport = generateProfessionalReport(
+    reportData,
+    responsibility,
+    insights,
+    recommendations,
+    reportData.reportType
+  );
+
+  // 8. Generate summary narrative
   const summaryNarrative = generateSummaryNarrative(
     reportData,
     responsibility,
@@ -73,7 +85,8 @@ export function analyzeKPIIntelligence(reportData: ReportData): KPIIntelligenceR
     executive_summary: executiveSummary,
     channel_intelligence: channelIntelligence,
     recommendations,
-    summary_narrative: summaryNarrative
+    summary_narrative: summaryNarrative,
+    professional_report: professionalReport
   };
 }
 
