@@ -220,6 +220,20 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
               }),
             ] : []),
 
+            // Show example response descriptions grouped by entity
+            ...(kpiReport?.professional_report?.responsibility_distribution_analysis?.entities || []).map((entity: any) => [
+              new Paragraph({
+                children: [new TextRun({ text: entity.name, bold: true, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 120 }
+              }),
+              ...(entity.examples && entity.examples.length ? [
+                new Paragraph({
+                  children: [new TextRun({ text: `Examples: ${entity.examples.join('; ')}`, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                  spacing: { before: 60, after: 80 }
+                })
+              ] : []),
+            ]).flat(),
+
             // 7b. KEY INSIGHTS
             new Paragraph({
               heading: HeadingLevel.HEADING_3,
