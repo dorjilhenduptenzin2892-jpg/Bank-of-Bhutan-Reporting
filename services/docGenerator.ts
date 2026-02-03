@@ -1,5 +1,5 @@
 
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeadingLevel, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeadingLevel, AlignmentType, ImageRun } from 'docx';
 import saveAs from 'file-saver';
 import { ReportData } from '../types';
 import { KPIIntelligenceReport } from './kpiIntelligence';
@@ -187,6 +187,12 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
               heading: HeadingLevel.HEADING_3,
               children: [new TextRun({ text: "Responsibility Distribution Analysis", bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
             }),
+              // Insert pie diagram (SVG -> PNG) if available
+              ...(kpiReport?.professional_report?.responsibility_distribution_analysis?.pie_svg ? [
+                // We will convert SVG data URL to PNG bytes at runtime and embed as ImageRun
+                // Placeholder paragraph; actual ImageRun will be inserted after we convert the SVG
+                new Paragraph({ text: "" })
+              ] : []),
             new Table({
               width: { size: 100, type: WidthType.PERCENTAGE },
               rows: [
@@ -320,6 +326,78 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
   });
 
   try {
+    // If KPI pie SVG is present, convert it to PNG and insert into the document
+    async function svgDataUrlToPngUint8Array(dataUrl: string): Promise<Uint8Array> {
+      return new Promise((resolve, reject) => {
+        try {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width || 300;
+            canvas.height = img.height || 300;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return reject(new Error('Canvas not available'));
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            canvas.toBlob((blob) => {
+              if (!blob) return reject(new Error('PNG conversion failed'));
+              const reader = new FileReader();
+              reader.onload = () => {
+                resolve(new Uint8Array(reader.result as ArrayBuffer));
+              };
+              reader.onerror = (e) => reject(e);
+              reader.readAsArrayBuffer(blob);
+            }, 'image/png');
+          };
+          img.onerror = (e) => reject(new Error('SVG load error'));
+          img.src = dataUrl;
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
+
+    // Locate the placeholder empty paragraph we inserted for the image and replace it with an ImageRun paragraph
+    if (kpiReport?.professional_report?.responsibility_distribution_analysis?.pie_svg) {
+      try {
+        const svgDataUrl = kpiReport.professional_report.responsibility_distribution_analysis.pie_svg;
+        const pngBytes = await svgDataUrlToPngUint8Array(svgDataUrl);
+        // Find the index of the KPI section children where we inserted an empty paragraph placeholder.
+        const section = (doc.sections && doc.sections[0] && doc.sections[0].children) as any[];
+        if (section) {
+          // Find first empty paragraph after the 'Responsibility Distribution Analysis' heading
+          let foundIndex = -1;
+          for (let i = 0; i < section.length; i++) {
+            const p = section[i];
+            try {
+              if (p && p.root && p.root[0] && p.root[0].options && p.root[0].options.children) {
+                const text = p.root[0].options.children.map((c: any) => c.text || '').join('').trim();
+                if (!text) { foundIndex = i; break; }
+              }
+            } catch (_) { /* continue */ }
+          }
+
+          const imgParagraph = new Paragraph({
+            children: [
+              new ImageRun({
+                data: pngBytes,
+                transformation: { width: 420, height: 300 }
+              })
+            ],
+            spacing: { after: 200 }
+          });
+
+          if (foundIndex >= 0) {
+            section.splice(foundIndex, 1, imgParagraph);
+          } else {
+            section.unshift(imgParagraph);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to embed KPI pie image:', e);
+      }
+    }
     console.log('Converting document to blob...');
     const blob = await Packer.toBlob(doc);
     console.log('Blob created successfully, size:', blob.size);

@@ -6,6 +6,7 @@
 
 import { ReportData, ReportType } from '../../types';
 import { ResponsibilityDistribution } from './responsibilityModel';
+import { getDeclineEntry } from './declineKnowledgeBase';
 import { Insight } from './insightEngine';
 import { Recommendation } from './recommendationEngine';
 
@@ -39,8 +40,9 @@ export interface DeclineProfile {
 
 export interface ResponsibilityAnalysis {
   summary: string;
-  entities: Array<{ name: string; percentage: number; description: string }>;
+  entities: Array<{ name: string; percentage: number; description: string; examples?: string[] }>;
   assessment: string;
+  pie_svg?: string; // base64 data URL for an SVG pie chart
 }
 
 export interface RecommendationsSummary {
@@ -63,9 +65,9 @@ export function generateProfessionalReport(
   return {
     executive_overview: generateExecutiveOverview(reportData, channelType),
     transaction_performance_snapshot: generateTransactionSnapshot(reportData),
-    business_decline_profile: generateBusinessDeclineProfile(reportData),
+    business_decline_profile: generateBusinessDeclineProfile(reportData, channelType),
     technical_decline_profile: generateTechnicalDeclineProfile(reportData, responsibility),
-    responsibility_distribution_analysis: generateResponsibilityAnalysis(responsibility),
+    responsibility_distribution_analysis: generateResponsibilityAnalysis(responsibility, [...(reportData.businessFailures || []), ...(reportData.technicalFailures || [])]),
     key_analytical_insights: generateKeyInsights(insights, responsibility, reportData, channelType),
     strategic_observations: generateStrategicObservations(reportData, responsibility, insights, channelType),
     recommendations_summary: generateRecommendationsSummary(recommendations),
@@ -118,13 +120,16 @@ function generateTransactionSnapshot(reportData: ReportData): TransactionSnapsho
 /**
  * Business Decline Profile - Professional analysis of business-level declines
  */
-function generateBusinessDeclineProfile(reportData: ReportData): DeclineProfile {
+function generateBusinessDeclineProfile(reportData: ReportData, channelType: ReportType): DeclineProfile {
   const businessFailures = reportData.businessFailures || [];
   const totalFailures = (reportData.businessFailures || []).length + (reportData.technicalFailures || []).length;
   const totalDeclineVolume = businessFailures.reduce((sum, f) => sum + (f.volume || 0), 0);
 
-  // Top 3 drivers
-  const topDrivers = businessFailures.slice(0, 3)
+  // Number of drivers to show: IPG requires up to 10, others default to 3
+  const numDrivers = channelType === 'IPG' ? 10 : 3;
+
+  // Top drivers (up to numDrivers)
+  const topDrivers = businessFailures.slice(0, numDrivers)
     .map(f => `${f.description} (${f.volume} transactions)`)
     .join('; ');
 
@@ -183,14 +188,15 @@ function generateTechnicalDeclineProfile(reportData: ReportData, responsibility:
 /**
  * Responsibility Distribution Analysis
  */
-function generateResponsibilityAnalysis(responsibility: ResponsibilityDistribution): ResponsibilityAnalysis {
-  const entities: Array<{ name: string; percentage: number; description: string }> = [];
+function generateResponsibilityAnalysis(responsibility: ResponsibilityDistribution, failures: Array<{ description: string; volume?: number }>): ResponsibilityAnalysis {
+  const entities: Array<{ name: string; percentage: number; description: string; examples?: string[] }> = [];
 
   if (responsibility.issuer_percent > 0) {
     entities.push({
       name: 'Issuer Authorization Decisions',
       percentage: responsibility.issuer_percent,
-      description: 'Authorization policies, fraud controls, account status management, and velocity rules'
+      description: 'Authorization policies, fraud controls, account status management, and velocity rules',
+      examples: []
     });
   }
 
@@ -198,7 +204,8 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
     entities.push({
       name: 'Cardholder Behavior & Account Status',
       percentage: responsibility.cardholder_percent,
-      description: 'Insufficient funds, incorrect authentication, expired cards, and account mismanagement'
+      description: 'Insufficient funds, incorrect authentication, expired cards, and account mismanagement',
+      examples: []
     });
   }
 
@@ -206,7 +213,8 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
     entities.push({
       name: 'Network & Scheme Factors',
       percentage: responsibility.network_percent,
-      description: 'Scheme-level rules, network connectivity, and interchange coordination'
+      description: 'Scheme-level rules, network connectivity, and interchange coordination',
+      examples: []
     });
   }
 
@@ -214,7 +222,8 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
     entities.push({
       name: 'Merchant Integration & Configuration',
       percentage: responsibility.merchant_percent,
-      description: 'Terminal setup, MCC classification, transaction data formatting, and integration standards'
+      description: 'Terminal setup, MCC classification, transaction data formatting, and integration standards',
+      examples: []
     });
   }
 
@@ -222,7 +231,8 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
     entities.push({
       name: 'Acquirer & Processing Infrastructure',
       percentage: responsibility.acquirer_percent,
-      description: 'Gateway operations, host availability, processing rules, and system configuration'
+      description: 'Gateway operations, host availability, processing rules, and system configuration',
+      examples: []
     });
   }
 
@@ -230,11 +240,53 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
     entities.push({
       name: 'External & Environmental Factors',
       percentage: responsibility.external_percent,
-      description: 'Network latency, third-party service availability, and external system dependencies'
+      description: 'Network latency, third-party service availability, and external system dependencies',
+      examples: []
     });
   }
 
   const summary = `Decline causation analysis indicates responsibility distribution across multiple acquiring ecosystem entities:`;
+
+  // Map failures to dominant entity examples
+  const entityKeyMap = {
+    issuer: 0,
+    cardholder: 1,
+    network: 2,
+    merchant: 3,
+    acquirer: 4,
+    external: 5
+  } as Record<string, number>;
+
+  (failures || []).forEach(f => {
+    const entry = getDeclineEntry(f.description || '');
+    // Determine dominant weight
+    const weights = [
+      { key: 'issuer', v: entry.issuer_weight },
+      { key: 'cardholder', v: entry.cardholder_weight },
+      { key: 'network', v: entry.network_weight },
+      { key: 'merchant', v: entry.merchant_weight },
+      { key: 'acquirer', v: entry.acquirer_weight },
+      { key: 'external', v: entry.external_weight }
+    ];
+    weights.sort((a, b) => b.v - a.v);
+    const dominant = weights[0].key;
+    const idx = entityKeyMap[dominant];
+    if (idx !== undefined) {
+      const list = entities[idx].examples || (entities[idx].examples = []);
+      if (!list.includes(f.description)) {
+        list.push(f.description);
+      }
+    }
+  });
+
+  // Limit examples per entity to a reasonable number for the report (10)
+  entities.forEach(e => {
+    if (e.examples && e.examples.length > 10) e.examples = e.examples.slice(0, 10);
+  });
+
+  // Build a simple pie SVG and embed as base64 data URL
+  const pieSvg = buildResponsibilityPieSVG(entities.map(e => ({ name: e.name, percentage: e.percentage })));
+  const pieDataUrl = `data:image/svg+xml;base64,${Buffer.from(pieSvg).toString('base64')}`;
 
   const assessment = responsibility.issuer_percent > 50
     ? `Issuer-driven factors represent the primary component of decline attribution, reflecting the significant role of issuer authorization policies and risk management strategies in transaction processing outcomes. This distribution is typical in international and domestic acquiring environments.`
@@ -243,8 +295,53 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
   return {
     summary,
     entities,
-    assessment
+    assessment,
+    pie_svg: pieDataUrl
   };
+}
+
+/**
+ * Build a minimal SVG pie chart from entities
+ */
+function buildResponsibilityPieSVG(parts: Array<{ name: string; percentage: number }>): string {
+  const size = 300;
+  const radius = size / 2;
+  const cx = radius;
+  const cy = radius;
+  const colors = ['#2E86AB', '#F6C85F', '#8BC34A', '#FF8A65', '#9B59B6', '#607D8B'];
+
+  let cumulative = 0;
+  const slices: string[] = [];
+  parts.forEach((p, i) => {
+    const startAngle = (cumulative / 100) * Math.PI * 2 - Math.PI / 2;
+    cumulative += p.percentage;
+    const endAngle = (cumulative / 100) * Math.PI * 2 - Math.PI / 2;
+    const x1 = cx + radius * Math.cos(startAngle);
+    const y1 = cy + radius * Math.sin(startAngle);
+    const x2 = cx + radius * Math.cos(endAngle);
+    const y2 = cy + radius * Math.sin(endAngle);
+    const largeArc = p.percentage > 50 ? 1 : 0;
+    const path = `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+    const color = colors[i % colors.length];
+    slices.push(`<path d="${path}" fill="${color}" stroke="#ffffff" stroke-width="1"/>`);
+  });
+
+  // Legend
+  const legendItems: string[] = [];
+  parts.forEach((p, i) => {
+    const color = colors[i % colors.length];
+    const lx = 10;
+    const ly = size - (parts.length - i) * 18 - 10;
+    legendItems.push(`<rect x="${lx}" y="${ly}" width="12" height="12" fill="${color}"/>`);
+    legendItems.push(`<text x="${lx + 18}" y="${ly + 11}" font-size="12" fill="#222">${p.name} (${p.percentage.toFixed(1)}%)</text>`);
+  });
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+  <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <rect width="100%" height="100%" fill="#ffffff" />
+    <g>${slices.join('\n')}</g>
+    <g>${legendItems.join('\n')}</g>
+  </svg>`;
 }
 
 /**
