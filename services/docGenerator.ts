@@ -185,13 +185,32 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
             // 7a. RESPONSIBILITY DISTRIBUTION
             new Paragraph({
               heading: HeadingLevel.HEADING_3,
+              children: [new TextRun({ text: "Response Description Reference", bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
+            }),
+            new Table({
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: [
+                new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Entity", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Response Descriptions", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                  ],
+                }),
+                ...(kpiReport?.professional_report?.responsibility_distribution_analysis?.entities || []).map((entity: any) => new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: entity.name, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (entity.examples || []).map((ex: any) => ex.description || ex).join('; '), font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                  ],
+                })),
+              ],
+            }),
+            new Paragraph({ text: "", spacing: { after: 200 } }),
+
+            // 7b. RESPONSIBILITY DISTRIBUTION TABLE
+            new Paragraph({
+              heading: HeadingLevel.HEADING_3,
               children: [new TextRun({ text: "Responsibility Distribution Analysis", bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
             }),
-              // Insert pie diagram (SVG -> PNG) if available
-              ...(kpiReport?.professional_report?.responsibility_distribution_analysis?.pie_svg ? [
-                // Placeholder marker for overall pie; will be replaced at runtime
-                new Paragraph({ children: [new TextRun({ text: "__PIE_OVERALL__" })] })
-              ] : []),
             new Table({
               width: { size: 100, type: WidthType.PERCENTAGE },
               rows: [
@@ -218,20 +237,6 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
                 spacing: { before: 120, after: 200 }
               }),
             ] : []),
-
-            // Show example response descriptions grouped by entity
-            ...(kpiReport?.professional_report?.responsibility_distribution_analysis?.entities || []).map((entity: any, idx: number) => {
-              const markerParagraph = entity.pie_svg ? new Paragraph({ children: [new TextRun({ text: `__PIE_ENTITY_${idx}__` })] }) : null;
-              const header = new Paragraph({
-                children: [new TextRun({ text: entity.name, bold: true, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
-                spacing: { before: 120 }
-              });
-
-              const parts = [] as any[];
-              if (markerParagraph) parts.push(markerParagraph);
-              parts.push(header);
-              return parts;
-            }).flat(),
 
             // 7b. KEY INSIGHTS
             new Paragraph({
@@ -339,97 +344,6 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
   });
 
   try {
-    // If KPI pie SVG is present, convert it to PNG and insert into the document
-    async function svgDataUrlToPngUint8Array(dataUrl: string): Promise<Uint8Array> {
-      return new Promise((resolve, reject) => {
-        try {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width || 300;
-            canvas.height = img.height || 300;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return reject(new Error('Canvas not available'));
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-            canvas.toBlob((blob) => {
-              if (!blob) return reject(new Error('PNG conversion failed'));
-              const reader = new FileReader();
-              reader.onload = () => {
-                resolve(new Uint8Array(reader.result as ArrayBuffer));
-              };
-              reader.onerror = (e) => reject(e);
-              reader.readAsArrayBuffer(blob);
-            }, 'image/png');
-          };
-          img.onerror = (e) => reject(new Error('SVG load error'));
-          img.src = dataUrl;
-        } catch (err) {
-          reject(err);
-        }
-      });
-    }
-
-    // Replace markers for overall and per-entity pies with converted PNG ImageRuns
-    try {
-      const section = (doc.sections && doc.sections[0] && doc.sections[0].children) as any[];
-      if (section && kpiReport?.professional_report?.responsibility_distribution_analysis) {
-        // Prepare marker -> SVG map
-        const overallSvg = kpiReport.professional_report.responsibility_distribution_analysis.pie_svg;
-        const entities = kpiReport.professional_report.responsibility_distribution_analysis.entities || [];
-        const markerMap: Record<string, string> = {};
-        if (overallSvg) markerMap['__PIE_OVERALL__'] = overallSvg;
-        entities.forEach((ent: any, i: number) => {
-          if (ent.pie_svg) markerMap[`__PIE_ENTITY_${i}__`] = ent.pie_svg;
-        });
-
-        console.log('Marker map keys:', Object.keys(markerMap));
-
-        // Collect indices to replace (process in reverse to avoid index shifting)
-        const replacements: Array<{ idx: number; marker: string; svg: string }> = [];
-
-        for (let i = 0; i < section.length; i++) {
-          const p = section[i];
-          try {
-            // Extract text from paragraph children
-            let paragraphText = '';
-            if (p && p.root && p.root[0] && p.root[0].options && p.root[0].options.children) {
-              paragraphText = p.root[0].options.children.map((c: any) => c.text || '').join('').trim();
-            }
-
-            console.log(`Paragraph ${i}: "${paragraphText}"`);
-
-            // Check if this is a marker
-            const markerKey = Object.keys(markerMap).find(key => key === paragraphText);
-            if (markerKey) {
-              console.log(`Found marker at index ${i}: ${markerKey}`);
-              replacements.push({ idx: i, marker: markerKey, svg: markerMap[markerKey] });
-            }
-          } catch (err) {
-            // continue
-          }
-        }
-
-        // Process replacements in reverse order to avoid index shifting
-        for (let r = replacements.length - 1; r >= 0; r--) {
-          const { idx, marker, svg } = replacements[r];
-          try {
-            const pngBytes = await svgDataUrlToPngUint8Array(svg);
-            const imgParagraph = new Paragraph({
-              children: [new ImageRun({ data: pngBytes, transformation: { width: 420, height: 300 } })],
-              spacing: { after: 200 }
-            });
-            section.splice(idx, 1, imgParagraph);
-            console.log(`Replaced marker ${marker} at index ${idx}`);
-          } catch (e) {
-            console.warn(`Failed to convert/insert pie for marker ${marker}:`, e);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to process pie markers:', e);
-    }
     console.log('Converting document to blob...');
     const blob = await Packer.toBlob(doc);
     console.log('Blob created successfully, size:', blob.size);

@@ -40,9 +40,8 @@ export interface DeclineProfile {
 
 export interface ResponsibilityAnalysis {
   summary: string;
-  entities: Array<{ name: string; percentage: number; description: string; examples?: { description: string; volume: number }[]; pie_svg?: string }>;
+  entities: Array<{ name: string; percentage: number; description: string; examples?: { description: string; volume: number }[] }>;
   assessment: string;
-  pie_svg?: string; // base64 data URL for an SVG pie chart
 }
 
 export interface RecommendationsSummary {
@@ -301,19 +300,10 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
     }
   });
 
-  // Limit examples per entity and build per-entity pie SVGs
+  // Limit examples per entity 
   entities.forEach(e => {
     if (e.examples && e.examples.length > 10) e.examples = e.examples.slice(0, 10);
-    if (e.examples && e.examples.length > 0) {
-      const total = e.examples.reduce((s, ex) => s + (ex.volume || 0), 0) || 1;
-      const parts = e.examples.map(ex => ({ name: ex.description, percentage: (ex.volume || 0) / total * 100 }));
-      const svg = buildResponsibilityPieSVG(parts);
-      e.pie_svg = `data:image/svg+xml;base64,${encodeBase64(svg)}`;
-    }
   });
-
-  // Build overall responsibility pie
-  const pieSvg = buildResponsibilityPieSVG(entities.map(e => ({ name: e.name, percentage: e.percentage })));
 
   const assessment = responsibility.issuer_percent > 50
     ? `Issuer-driven factors represent the primary component of decline attribution, reflecting the significant role of issuer authorization policies and risk management strategies in transaction processing outcomes. This distribution is typical in international and domestic acquiring environments.`
@@ -322,53 +312,8 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
   return {
     summary,
     entities,
-    assessment,
-    pie_svg: `data:image/svg+xml;base64,${encodeBase64(pieSvg)}`
+    assessment
   };
-}
-
-/**
- * Build a minimal SVG pie chart from entities
- */
-function buildResponsibilityPieSVG(parts: Array<{ name: string; percentage: number }>): string {
-  const size = 300;
-  const radius = size / 2;
-  const cx = radius;
-  const cy = radius;
-  const colors = ['#2E86AB', '#F6C85F', '#8BC34A', '#FF8A65', '#9B59B6', '#607D8B'];
-
-  let cumulative = 0;
-  const slices: string[] = [];
-  parts.forEach((p, i) => {
-    const startAngle = (cumulative / 100) * Math.PI * 2 - Math.PI / 2;
-    cumulative += p.percentage;
-    const endAngle = (cumulative / 100) * Math.PI * 2 - Math.PI / 2;
-    const x1 = cx + radius * Math.cos(startAngle);
-    const y1 = cy + radius * Math.sin(startAngle);
-    const x2 = cx + radius * Math.cos(endAngle);
-    const y2 = cy + radius * Math.sin(endAngle);
-    const largeArc = p.percentage > 50 ? 1 : 0;
-    const path = `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-    const color = colors[i % colors.length];
-    slices.push(`<path d="${path}" fill="${color}" stroke="#ffffff" stroke-width="1"/>`);
-  });
-
-  // Legend
-  const legendItems: string[] = [];
-  parts.forEach((p, i) => {
-    const color = colors[i % colors.length];
-    const lx = 10;
-    const ly = size - (parts.length - i) * 18 - 10;
-    legendItems.push(`<rect x="${lx}" y="${ly}" width="12" height="12" fill="${color}"/>`);
-    legendItems.push(`<text x="${lx + 18}" y="${ly + 11}" font-size="12" fill="#222">${p.name} (${p.percentage.toFixed(1)}%)</text>`);
-  });
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-  <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-    <rect width="100%" height="100%" fill="#ffffff" />
-    <g>${slices.join('\n')}</g>
-    <g>${legendItems.join('\n')}</g>
-  </svg>`;
 }
 
 /**
