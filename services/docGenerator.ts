@@ -194,22 +194,22 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
                   children: [
                     new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Entity", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
                     new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Responsibility %", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Status", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Description", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
                   ],
                 }),
-                ...(kpiReport.responsibility_distribution?.entities || []).map((entity: any) => new TableRow({
+                ...(kpiReport?.professional_report?.responsibility_distribution_analysis?.entities || []).map((entity: any) => new TableRow({
                   children: [
                     new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: entity.name, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${(entity.percentage * 100).toFixed(1)}%`, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: entity.status || 'Monitored', font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${(entity.percentage).toFixed(1)}%`, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: entity.description, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
                   ],
                 })),
               ],
             }),
             new Paragraph({ text: "", spacing: { after: 200 } }),
-            ...(kpiReport.responsibility_distribution?.explanation ? [
+            ...(kpiReport?.professional_report?.responsibility_distribution_analysis?.assessment ? [
               new Paragraph({
-                children: [new TextRun({ text: kpiReport.responsibility_distribution.explanation, size: DEFAULT_SIZE, font: DEFAULT_FONT, italics: true })],
+                children: [new TextRun({ text: kpiReport.professional_report.responsibility_distribution_analysis.assessment, size: DEFAULT_SIZE, font: DEFAULT_FONT, italics: true })],
                 spacing: { before: 120, after: 200 }
               }),
             ] : []),
