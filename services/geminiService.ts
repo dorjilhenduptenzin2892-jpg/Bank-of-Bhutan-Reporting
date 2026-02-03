@@ -63,8 +63,6 @@ export async function generateNarrative(data: ReportData): Promise<string> {
   const t2 = `2. Stability: Technical issues = ${techSum} txns (${fmtPct(techSum)}) of estimated failures, indicating ${techSum < estFailures * 0.1 ? 'generally stable' : 'periodic instability'}.`;
   const t3 = techSum > 0 ? (techSum > estFailures * 0.2 ? '3. Summary: Technical problems are a notable source of failures.' : '3. Summary: Technical issues present but not dominant.') : '3. Summary: No significant technical pattern.';
 
-  const note = 'Generated locally (deterministic summary). Enable server AI for extended narratives.';
-
   return [
     'Business Decline Analysis',
     b1,
@@ -75,7 +73,5 @@ export async function generateNarrative(data: ReportData): Promise<string> {
     t1,
     t2,
     t3,
-    '',
-    note,
   ].join('\n\n');
 }
