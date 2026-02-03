@@ -1,28 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" width="200" height="240">
-  <!-- Black "B" text -->
-  <text x="20" y="60" font-family="Arial, sans-serif" font-size="52" font-weight="900" fill="#000000">B</text>
-  
-  <!-- Blue circle with ripples -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" width="240" height="180">
   <defs>
     <radialGradient id="blueSphere" cx="35%" cy="35%">
-      <stop offset="0%" style="stop-color:#4db8ff;stop-opacity:1" />
-      <stop offset="70%" style="stop-color:#0088dd;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#004499;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#4fc3f7;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#0288d1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#01579b;stop-opacity:1" />
     </radialGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
   </defs>
   
-  <!-- Main blue circle -->
-  <circle cx="90" cy="50" r="40" fill="url(#blueSphere)" opacity="0.95"/>
+  <!-- Large prominent "B" on left -->
+  <text x="18" y="75" font-family="Arial, sans-serif" font-size="72" font-weight="900" fill="#000000" letter-spacing="-2">B</text>
   
-  <!-- Ripple circles -->
-  <circle cx="90" cy="50" r="38" fill="none" stroke="#0077bb" stroke-width="1.5" opacity="0.6"/>
-  <circle cx="90" cy="50" r="28" fill="none" stroke="#0077bb" stroke-width="1.5" opacity="0.4"/>
-  <circle cx="90" cy="50" r="18" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <!-- Prominent blue circle with ripples (center) -->
+  <circle cx="120" cy="60" r="48" fill="url(#blueSphere)" filter="url(#shadow)"/>
   
-  <!-- Black "B" text after -->
-  <text x="140" y="60" font-family="Arial, sans-serif" font-size="52" font-weight="900" fill="#000000">B</text>
+  <!-- Ripple circles for depth -->
+  <circle cx="120" cy="60" r="46" fill="none" stroke="#0277bd" stroke-width="2" opacity="0.7"/>
+  <circle cx="120" cy="60" r="34" fill="none" stroke="#0277bd" stroke-width="1.5" opacity="0.5"/>
+  <circle cx="120" cy="60" r="22" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.8"/>
   
-  <!-- Text below -->
-  <text x="10" y="130" font-family="Arial, sans-serif" font-size="18" font-weight="900" fill="#000000">BANK OF BHUTAN</text>
-  <text x="45" y="155" font-family="Arial, sans-serif" font-size="12" font-weight="600" fill="#0088dd">A dhi Company</text>
+  <!-- Large prominent "B" on right -->
+  <text x="180" y="75" font-family="Arial, sans-serif" font-size="72" font-weight="900" fill="#000000" letter-spacing="-2">B</text>
+  
+  <!-- Bold text branding at bottom -->
+  <text x="12" y="145" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#000000" letter-spacing="0.5">BANK OF BHUTAN</text>
+  <text x="12" y="170" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#0277bd" letter-spacing="0.3">A dhi Company</text>
 </svg>

@@ -83,20 +83,20 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-slate-50" style={{ fontFamily: "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}>
-      <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 shadow-2xl border-b-2 border-blue-600 sticky top-0 z-50">
+      <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 shadow-2xl border-b-4 border-blue-500 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-6">
-            {/* BOB Logo */}
-            <div className="flex-shrink-0 h-16 w-16 rounded-lg overflow-hidden bg-white p-2 shadow-lg hover:shadow-xl transition-shadow">
+            {/* BOB Logo - Large and Prominent */}
+            <div className="flex-shrink-0 h-24 w-32 rounded-xl overflow-hidden bg-gradient-to-br from-white to-blue-50 p-2 shadow-2xl hover:shadow-blue-500/50 hover:shadow-2xl transition-all transform hover:scale-105">
               <img src="/bob-logo.svg" alt="Bank of Bhutan" className="h-full w-full object-contain" />
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight leading-tight text-white" style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}>BANK Of Bhutan</h1>
-              <p className="text-blue-300 text-sm font-semibold tracking-widest uppercase">Acquiring Reporting System</p>
+              <h1 className="text-4xl font-black tracking-tight leading-tight text-white" style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}>BANK Of Bhutan</h1>
+              <p className="text-blue-300 text-base font-bold tracking-widest uppercase">Acquiring Reporting System</p>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-8">
-            <div className="h-12 w-[2px] bg-slate-700"></div>
+            <div className="h-12 w-[2px] bg-gradient-to-b from-transparent via-slate-600 to-transparent"></div>
             <div className="text-right">
               <p className="text-xs uppercase text-slate-400 font-semibold tracking-widest">Terminal Status</p>
               <p className="text-sm text-emerald-400 font-medium flex items-center gap-2 justify-end mt-1">
