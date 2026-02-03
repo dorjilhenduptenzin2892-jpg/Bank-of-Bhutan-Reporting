@@ -33,7 +33,7 @@ export async function generateNarrative(data: ReportData): Promise<string> {
   const totalTx = data.totalTransactions || 0;
   const estFailures = Math.max(1, Math.round((data.failureRate / 100) * totalTx));
 
-  const sum = (arr: { volume?: number }[] = []) => arr.reduce((s, v) => s + (v.volume || 0), 0);
+  const sum = (arr: { volume?: number }[] = []) => arr.reduce((s: number, v) => s + (v.volume || 0), 0);
   const businessSum = sum(data.businessFailures);
   const techSum = sum(data.technicalFailures);
 
