@@ -82,26 +82,25 @@ const App: React.FC = () => {
   ] : [];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <header className="bg-slate-900 text-white p-6 shadow-xl border-b border-slate-700 sticky top-0 z-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-slate-50" style={{ fontFamily: "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}>
+      <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 shadow-2xl border-b-2 border-blue-600 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <div className="bg-blue-600 p-2 rounded-lg shadow-lg shadow-blue-900/20">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
+          <div className="flex items-center gap-6">
+            {/* BOB Logo */}
+            <div className="flex-shrink-0 h-16 w-16 rounded-lg overflow-hidden bg-white p-2 shadow-lg hover:shadow-xl transition-shadow">
+              <img src="/bob-logo.svg" alt="Bank of Bhutan" className="h-full w-full object-contain" />
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tight uppercase italic leading-tight">BANK Of Bhutan Acquiring Reporting</h1>
-              <p className="text-slate-400 text-[10px] font-bold tracking-[0.2em] uppercase">Monthly/Weekly analysis</p>
+              <h1 className="text-3xl font-black tracking-tight leading-tight text-white" style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}>BANK Of Bhutan</h1>
+              <p className="text-blue-300 text-sm font-semibold tracking-widest uppercase">Acquiring Reporting System</p>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-6">
-            <div className="h-10 w-[1px] bg-slate-700"></div>
+          <div className="hidden md:flex items-center gap-8">
+            <div className="h-12 w-[2px] bg-slate-700"></div>
             <div className="text-right">
-              <p className="text-[10px] uppercase text-slate-500 font-bold">Terminal Status</p>
-              <p className="text-xs text-emerald-400 font-mono flex items-center gap-2 justify-end">
-                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+              <p className="text-xs uppercase text-slate-400 font-semibold tracking-widest">Terminal Status</p>
+              <p className="text-sm text-emerald-400 font-medium flex items-center gap-2 justify-end mt-1">
+                <span className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse"></span>
                 SYSTEM ACTIVE
               </p>
             </div>
@@ -109,7 +108,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8" style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
         {!reportData && !loading && (
           <div className="max-w-3xl mx-auto mt-12 animate-in fade-in zoom-in duration-500">
             <div className="bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-slate-200">
