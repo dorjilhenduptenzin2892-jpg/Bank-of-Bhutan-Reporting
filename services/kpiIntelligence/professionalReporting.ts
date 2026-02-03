@@ -189,6 +189,25 @@ function generateTechnicalDeclineProfile(reportData: ReportData, responsibility:
  * Responsibility Distribution Analysis
  */
 function generateResponsibilityAnalysis(responsibility: ResponsibilityDistribution, failures: Array<{ description: string; volume?: number }>): ResponsibilityAnalysis {
+  // Helper to encode SVG to base64
+  function encodeBase64(str: string): string {
+    try {
+      if (typeof btoa === 'function') {
+        return btoa(unescape(encodeURIComponent(str)));
+      }
+    } catch (e) {
+      // fall through to Buffer
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      if (typeof Buffer !== 'undefined') return Buffer.from(str).toString('base64');
+    } catch (e) {
+      // no-op
+    }
+    return '';
+  }
+
   const entities: Array<{ name: string; percentage: number; description: string; examples?: { description: string; volume: number }[]; pie_svg?: string }> = [];
 
   if (responsibility.issuer_percent > 0) {
