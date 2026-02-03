@@ -47,15 +47,15 @@ export function analyzeKPIIntelligence(reportData: ReportData): KPIIntelligenceR
   const allInsights = generateInsights(reportData, responsibility, reportData.reportType);
   const insights = prioritizeInsights(allInsights).slice(0, 5); // Top 5 insights
 
-  // 4. Generate executive summary
-  const executiveSummary = generateExecutiveSummary(reportData, responsibility, insights, reportData.reportType, allRecommendations);
-
-  // 5. Analyze channel-specific patterns
-  const channelIntelligence = analyzeChannelSpecificPatterns(reportData, responsibility, reportData.reportType);
-
-  // 6. Generate recommendations
+  // 4. Generate recommendations (moved before executive summary)
   const allRecommendations = generateRecommendations(reportData, responsibility, reportData.reportType);
   const recommendations = prioritizeRecommendations(allRecommendations).slice(0, 5); // Top 5 recommendations
+
+  // 5. Generate executive summary
+  const executiveSummary = generateExecutiveSummary(reportData, responsibility, insights, reportData.reportType, allRecommendations);
+
+  // 6. Analyze channel-specific patterns
+  const channelIntelligence = analyzeChannelSpecificPatterns(reportData, responsibility, reportData.reportType);
 
   // 7. Generate professional report
   const professionalReport = generateProfessionalReport(

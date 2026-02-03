@@ -379,7 +379,7 @@ function generateRecommendationsSummary(recommendations: Recommendation[]): Reco
   recommendations.forEach(rec => {
     const formatted = `${rec.area}: ${rec.action}`;
 
-    if (rec.priority === 'high') {
+    if (rec.priority === 'High') {
       priorityFocusAreas.push(formatted);
     } else {
       continuousImprovementAreas.push(formatted);
