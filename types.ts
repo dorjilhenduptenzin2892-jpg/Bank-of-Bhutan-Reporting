@@ -21,7 +21,7 @@ export interface StandardizedDecline {
   typicalCause: string;
 }
 
-export type ReportType = 'POS' | 'ATM';
+export type ReportType = 'POS' | 'ATM' | 'IPG';
 
 export interface ReportData {
   reportType: ReportType;
