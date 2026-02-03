@@ -226,15 +226,10 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
                 children: [new TextRun({ text: entity.name, bold: true, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
                 spacing: { before: 120 }
               });
-              const examplesParagraph = (entity.examples && entity.examples.length) ? new Paragraph({
-                children: [new TextRun({ text: `Examples: ${entity.examples.map((ex: any) => ex.description || ex).join('; ')}`, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
-                spacing: { before: 60, after: 80 }
-              }) : null;
 
               const parts = [] as any[];
               if (markerParagraph) parts.push(markerParagraph);
               parts.push(header);
-              if (examplesParagraph) parts.push(examplesParagraph);
               return parts;
             }).flat(),
 

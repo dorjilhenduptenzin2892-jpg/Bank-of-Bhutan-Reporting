@@ -259,11 +259,11 @@ export const DECLINE_KNOWLEDGE_BASE: Record<string, DeclineEntry> = {
 
   'FORMAT ERROR': {
     category: 'Technical',
-    issuer_weight: 0.15,
-    acquirer_weight: 0.40,
-    network_weight: 0.30,
+    issuer_weight: 0.00,
+    acquirer_weight: 0.50,
+    network_weight: 0.20,
     cardholder_weight: 0.00,
-    merchant_weight: 0.15,
+    merchant_weight: 0.30,
     external_weight: 0.00,
     typical_causes: [
       'ISO 8583 message format violations',
@@ -280,13 +280,13 @@ export const DECLINE_KNOWLEDGE_BASE: Record<string, DeclineEntry> = {
   },
 
   'ISSUER OR SWITCH IS INOPERATIVE': {
-    category: 'Network',
-    issuer_weight: 0.50,
-    acquirer_weight: 0.10,
-    network_weight: 0.30,
+    category: 'Technical',
+    issuer_weight: 0.05,
+    acquirer_weight: 0.30,
+    network_weight: 0.40,
     cardholder_weight: 0.00,
     merchant_weight: 0.00,
-    external_weight: 0.10,
+    external_weight: 0.25,
     typical_causes: [
       'Issuer host downtime',
       'Intermediary switch unavailability',
@@ -303,12 +303,12 @@ export const DECLINE_KNOWLEDGE_BASE: Record<string, DeclineEntry> = {
 
   'SYSTEM MALFUNCTION': {
     category: 'Technical',
-    issuer_weight: 0.40,
-    acquirer_weight: 0.30,
-    network_weight: 0.20,
+    issuer_weight: 0.05,
+    acquirer_weight: 0.45,
+    network_weight: 0.25,
     cardholder_weight: 0.00,
     merchant_weight: 0.10,
-    external_weight: 0.00,
+    external_weight: 0.15,
     typical_causes: [
       'Host processing error',
       'Network interruption',
