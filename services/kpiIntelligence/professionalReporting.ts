@@ -286,7 +286,29 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
 
   // Build a simple pie SVG and embed as base64 data URL
   const pieSvg = buildResponsibilityPieSVG(entities.map(e => ({ name: e.name, percentage: e.percentage })));
-  const pieDataUrl = `data:image/svg+xml;base64,${Buffer.from(pieSvg).toString('base64')}`;
+
+  function encodeBase64(str: string): string {
+    // Prefer browser btoa when available (handles UTF-8 via encodeURIComponent)
+    try {
+      if (typeof btoa === 'function') {
+        return btoa(unescape(encodeURIComponent(str)));
+      }
+    } catch (e) {
+      // fall through to Buffer
+    }
+    // Fallback to Node Buffer when available
+    try {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      if (typeof Buffer !== 'undefined') return Buffer.from(str).toString('base64');
+    } catch (e) {
+      // no-op
+    }
+    // Last-resort: return empty string to avoid throwing in UI
+    return '';
+  }
+
+  const pieDataUrl = `data:image/svg+xml;base64,${encodeBase64(pieSvg)}`;
 
   const assessment = responsibility.issuer_percent > 50
     ? `Issuer-driven factors represent the primary component of decline attribution, reflecting the significant role of issuer authorization policies and risk management strategies in transaction processing outcomes. This distribution is typical in international and domestic acquiring environments.`
