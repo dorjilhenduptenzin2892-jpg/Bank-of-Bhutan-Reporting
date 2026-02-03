@@ -189,9 +189,8 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
             }),
               // Insert pie diagram (SVG -> PNG) if available
               ...(kpiReport?.professional_report?.responsibility_distribution_analysis?.pie_svg ? [
-                // We will convert SVG data URL to PNG bytes at runtime and embed as ImageRun
-                // Placeholder paragraph; actual ImageRun will be inserted after we convert the SVG
-                new Paragraph({ text: "" })
+                // Placeholder marker for overall pie; will be replaced at runtime
+                new Paragraph({ children: [new TextRun({ text: "__PIE_OVERALL__" })] })
               ] : []),
             new Table({
               width: { size: 100, type: WidthType.PERCENTAGE },
@@ -221,18 +220,23 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
             ] : []),
 
             // Show example response descriptions grouped by entity
-            ...(kpiReport?.professional_report?.responsibility_distribution_analysis?.entities || []).map((entity: any) => [
-              new Paragraph({
+            ...(kpiReport?.professional_report?.responsibility_distribution_analysis?.entities || []).map((entity: any, idx: number) => {
+              const markerParagraph = entity.pie_svg ? new Paragraph({ children: [new TextRun({ text: `__PIE_ENTITY_${idx}__` })] }) : null;
+              const header = new Paragraph({
                 children: [new TextRun({ text: entity.name, bold: true, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
                 spacing: { before: 120 }
-              }),
-              ...(entity.examples && entity.examples.length ? [
-                new Paragraph({
-                  children: [new TextRun({ text: `Examples: ${entity.examples.join('; ')}`, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
-                  spacing: { before: 60, after: 80 }
-                })
-              ] : []),
-            ]).flat(),
+              });
+              const examplesParagraph = (entity.examples && entity.examples.length) ? new Paragraph({
+                children: [new TextRun({ text: `Examples: ${entity.examples.map((ex: any) => ex.description || ex).join('; ')}`, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 60, after: 80 }
+              }) : null;
+
+              const parts = [] as any[];
+              if (markerParagraph) parts.push(markerParagraph);
+              parts.push(header);
+              if (examplesParagraph) parts.push(examplesParagraph);
+              return parts;
+            }).flat(),
 
             // 7b. KEY INSIGHTS
             new Paragraph({
@@ -372,45 +376,44 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
       });
     }
 
-    // Locate the placeholder empty paragraph we inserted for the image and replace it with an ImageRun paragraph
-    if (kpiReport?.professional_report?.responsibility_distribution_analysis?.pie_svg) {
-      try {
-        const svgDataUrl = kpiReport.professional_report.responsibility_distribution_analysis.pie_svg;
-        const pngBytes = await svgDataUrlToPngUint8Array(svgDataUrl);
-        // Find the index of the KPI section children where we inserted an empty paragraph placeholder.
-        const section = (doc.sections && doc.sections[0] && doc.sections[0].children) as any[];
-        if (section) {
-          // Find first empty paragraph after the 'Responsibility Distribution Analysis' heading
-          let foundIndex = -1;
-          for (let i = 0; i < section.length; i++) {
-            const p = section[i];
-            try {
-              if (p && p.root && p.root[0] && p.root[0].options && p.root[0].options.children) {
-                const text = p.root[0].options.children.map((c: any) => c.text || '').join('').trim();
-                if (!text) { foundIndex = i; break; }
+    // Replace markers for overall and per-entity pies with converted PNG ImageRuns
+    try {
+      const section = (doc.sections && doc.sections[0] && doc.sections[0].children) as any[];
+      if (section && kpiReport?.professional_report?.responsibility_distribution_analysis) {
+        // Prepare marker -> SVG map
+        const overallSvg = kpiReport.professional_report.responsibility_distribution_analysis.pie_svg;
+        const entities = kpiReport.professional_report.responsibility_distribution_analysis.entities || [];
+        const markerMap: Record<string, string> = {};
+        if (overallSvg) markerMap['__PIE_OVERALL__'] = overallSvg;
+        entities.forEach((ent: any, i: number) => {
+          if (ent.pie_svg) markerMap[`__PIE_ENTITY_${i}__`] = ent.pie_svg;
+        });
+
+        for (let i = 0; i < section.length; i++) {
+          const p = section[i];
+          try {
+            if (!(p && p.root && p.root[0] && p.root[0].options && p.root[0].options.children)) continue;
+            const text = p.root[0].options.children.map((c: any) => c.text || '').join('').trim();
+            if (!text) continue;
+            const svgForMarker = markerMap[text];
+            if (svgForMarker) {
+              try {
+                const pngBytes = await svgDataUrlToPngUint8Array(svgForMarker);
+                const imgParagraph = new Paragraph({
+                  children: [new ImageRun({ data: pngBytes, transformation: { width: 420, height: 300 } })],
+                  spacing: { after: 200 }
+                });
+                section.splice(i, 1, imgParagraph);
+                // advance index past inserted paragraph
+              } catch (e) {
+                console.warn('Failed to convert/insert pie for marker', text, e);
               }
-            } catch (_) { /* continue */ }
-          }
-
-          const imgParagraph = new Paragraph({
-            children: [
-              new ImageRun({
-                data: pngBytes,
-                transformation: { width: 420, height: 300 }
-              })
-            ],
-            spacing: { after: 200 }
-          });
-
-          if (foundIndex >= 0) {
-            section.splice(foundIndex, 1, imgParagraph);
-          } else {
-            section.unshift(imgParagraph);
-          }
+            }
+          } catch (_) { /* continue */ }
         }
-      } catch (e) {
-        console.warn('Failed to embed KPI pie image:', e);
       }
+    } catch (e) {
+      console.warn('Failed to process pie markers:', e);
     }
     console.log('Converting document to blob...');
     const blob = await Packer.toBlob(doc);

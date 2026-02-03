@@ -40,7 +40,7 @@ export interface DeclineProfile {
 
 export interface ResponsibilityAnalysis {
   summary: string;
-  entities: Array<{ name: string; percentage: number; description: string; examples?: string[] }>;
+  entities: Array<{ name: string; percentage: number; description: string; examples?: { description: string; volume: number }[]; pie_svg?: string }>;
   assessment: string;
   pie_svg?: string; // base64 data URL for an SVG pie chart
 }
@@ -189,7 +189,7 @@ function generateTechnicalDeclineProfile(reportData: ReportData, responsibility:
  * Responsibility Distribution Analysis
  */
 function generateResponsibilityAnalysis(responsibility: ResponsibilityDistribution, failures: Array<{ description: string; volume?: number }>): ResponsibilityAnalysis {
-  const entities: Array<{ name: string; percentage: number; description: string; examples?: string[] }> = [];
+  const entities: Array<{ name: string; percentage: number; description: string; examples?: { description: string; volume: number }[]; pie_svg?: string }> = [];
 
   if (responsibility.issuer_percent > 0) {
     entities.push({
@@ -247,7 +247,7 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
 
   const summary = `Decline causation analysis indicates responsibility distribution across multiple acquiring ecosystem entities:`;
 
-  // Map failures to dominant entity examples
+  // Map failures to dominant entity examples (collect volumes)
   const entityKeyMap = {
     issuer: 0,
     cardholder: 1,
@@ -259,7 +259,6 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
 
   (failures || []).forEach(f => {
     const entry = getDeclineEntry(f.description || '');
-    // Determine dominant weight
     const weights = [
       { key: 'issuer', v: entry.issuer_weight },
       { key: 'cardholder', v: entry.cardholder_weight },
@@ -271,44 +270,31 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
     weights.sort((a, b) => b.v - a.v);
     const dominant = weights[0].key;
     const idx = entityKeyMap[dominant];
-    if (idx !== undefined) {
+    if (idx !== undefined && entities[idx]) {
       const list = entities[idx].examples || (entities[idx].examples = []);
-      if (!list.includes(f.description)) {
-        list.push(f.description);
+      const volume = f.volume || 0;
+      const existing = list.find(x => x.description === f.description);
+      if (existing) {
+        existing.volume = Math.max(existing.volume, volume);
+      } else {
+        list.push({ description: f.description, volume });
       }
     }
   });
 
-  // Limit examples per entity to a reasonable number for the report (10)
+  // Limit examples per entity and build per-entity pie SVGs
   entities.forEach(e => {
     if (e.examples && e.examples.length > 10) e.examples = e.examples.slice(0, 10);
+    if (e.examples && e.examples.length > 0) {
+      const total = e.examples.reduce((s, ex) => s + (ex.volume || 0), 0) || 1;
+      const parts = e.examples.map(ex => ({ name: ex.description, percentage: (ex.volume || 0) / total * 100 }));
+      const svg = buildResponsibilityPieSVG(parts);
+      e.pie_svg = `data:image/svg+xml;base64,${encodeBase64(svg)}`;
+    }
   });
 
-  // Build a simple pie SVG and embed as base64 data URL
+  // Build overall responsibility pie
   const pieSvg = buildResponsibilityPieSVG(entities.map(e => ({ name: e.name, percentage: e.percentage })));
-
-  function encodeBase64(str: string): string {
-    // Prefer browser btoa when available (handles UTF-8 via encodeURIComponent)
-    try {
-      if (typeof btoa === 'function') {
-        return btoa(unescape(encodeURIComponent(str)));
-      }
-    } catch (e) {
-      // fall through to Buffer
-    }
-    // Fallback to Node Buffer when available
-    try {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      if (typeof Buffer !== 'undefined') return Buffer.from(str).toString('base64');
-    } catch (e) {
-      // no-op
-    }
-    // Last-resort: return empty string to avoid throwing in UI
-    return '';
-  }
-
-  const pieDataUrl = `data:image/svg+xml;base64,${encodeBase64(pieSvg)}`;
 
   const assessment = responsibility.issuer_percent > 50
     ? `Issuer-driven factors represent the primary component of decline attribution, reflecting the significant role of issuer authorization policies and risk management strategies in transaction processing outcomes. This distribution is typical in international and domestic acquiring environments.`
@@ -318,7 +304,7 @@ function generateResponsibilityAnalysis(responsibility: ResponsibilityDistributi
     summary,
     entities,
     assessment,
-    pie_svg: pieDataUrl
+    pie_svg: `data:image/svg+xml;base64,${encodeBase64(pieSvg)}`
   };
 }
 
