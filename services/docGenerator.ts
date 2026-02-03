@@ -10,6 +10,8 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
   const HEADING_SIZE = 24;
   const TITLE_SIZE = 32;
 
+  const technicalFailures = (data.technicalFailures || []).filter(f => (f.volume ?? 0) > 0);
+
   console.log('Starting document creation...');
   console.log('Creating document with reportData:', data);
   console.log('KPI Report present:', !!kpiReport);
@@ -121,31 +123,33 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
           }),
           new Paragraph({ text: "", spacing: { after: 400 } }),
 
-          // 5. TOP TECHNICAL DECLINE SECTION
-          new Paragraph({
-            heading: HeadingLevel.HEADING_3,
-            children: [new TextRun({ text: `Top ${data.reportType} Technical Decline`, bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
-          }),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: [
-              new TableRow({
-                children: [
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Response Description", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Count", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Typical Cause", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
-                ],
-              }),
-              ...data.technicalFailures.map(f => new TableRow({
-                children: [
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: f.description, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: f.volume.toString(), font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: f.typicalCause, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
-                ],
-              })),
-            ],
-          }),
-          new Paragraph({ text: "", spacing: { after: 400 } }),
+          // 5. TOP TECHNICAL DECLINE SECTION (only if data exists)
+          ...(technicalFailures.length > 0 ? [
+            new Paragraph({
+              heading: HeadingLevel.HEADING_3,
+              children: [new TextRun({ text: `Top ${data.reportType} Technical Decline`, bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
+            }),
+            new Table({
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: [
+                new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Response Description", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Count", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Typical Cause", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                  ],
+                }),
+                ...technicalFailures.map(f => new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: f.description, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: f.volume.toString(), font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: f.typicalCause, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                  ],
+                })),
+              ],
+            }),
+            new Paragraph({ text: "", spacing: { after: 400 } }),
+          ] : []),
 
           // 6. KPI INTELLIGENCE SECTION
           ...(kpiReport ? [

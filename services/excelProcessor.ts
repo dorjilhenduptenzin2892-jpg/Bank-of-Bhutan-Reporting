@@ -100,17 +100,10 @@ export async function processExcel(file: File, reportType: ReportType): Promise<
         let businessFailures = await mapToStandardized(Object.entries(businessMap), false);
         const technicalFailures = await mapToStandardized(Object.entries(technicalMap), true);
 
-        // Apply filters: For IPG include up to top 10 regardless of volume; otherwise require volume >= 50 and top 12
-        if (reportType === 'IPG') {
-          businessFailures = businessFailures
-            .sort((a, b) => b.volume - a.volume)
-            .slice(0, 10);
-        } else {
-          businessFailures = businessFailures
-            .filter(f => f.volume >= 50)
-            .sort((a, b) => b.volume - a.volume)
-            .slice(0, 12);
-        }
+        // Always include top 10 business declines across all channels (no minimum volume threshold)
+        businessFailures = businessFailures
+          .sort((a, b) => b.volume - a.volume)
+          .slice(0, 10);
 
         technicalFailures.sort((a, b) => b.volume - a.volume);
 
