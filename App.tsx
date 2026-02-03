@@ -56,9 +56,14 @@ const App: React.FC = () => {
   const handleDownload = async () => {
     if (!reportData) return;
     try {
+      console.log('Starting document generation...');
+      console.log('Report data:', reportData);
+      console.log('KPI report:', kpiReport);
       await generateDocx(reportData, kpiReport || undefined);
-    } catch (err) {
-      setError('Failed to generate Word document.');
+      console.log('Document generated successfully');
+    } catch (err: any) {
+      console.error('Download error:', err);
+      setError(`Failed to generate Word document: ${err.message || err}`);
     }
   };
 

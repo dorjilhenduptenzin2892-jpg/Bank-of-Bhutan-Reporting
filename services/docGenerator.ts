@@ -193,7 +193,7 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
                     new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Status", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
                   ],
                 }),
-                ...(kpiReport.responsibilityDistribution.entities || []).map((entity: any) => new TableRow({
+                ...(kpiReport.responsibility_distribution?.entities || []).map((entity: any) => new TableRow({
                   children: [
                     new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: entity.name, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
                     new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${(entity.percentage * 100).toFixed(1)}%`, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
@@ -203,9 +203,9 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
               ],
             }),
             new Paragraph({ text: "", spacing: { after: 200 } }),
-            ...(kpiReport.responsibilityDistribution.explanation ? [
+            ...(kpiReport.responsibility_distribution?.explanation ? [
               new Paragraph({
-                children: [new TextRun({ text: kpiReport.responsibilityDistribution.explanation, size: DEFAULT_SIZE, font: DEFAULT_FONT, italics: true })],
+                children: [new TextRun({ text: kpiReport.responsibility_distribution.explanation, size: DEFAULT_SIZE, font: DEFAULT_FONT, italics: true })],
                 spacing: { before: 120, after: 200 }
               }),
             ] : []),
@@ -267,13 +267,13 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
               heading: HeadingLevel.HEADING_3,
               children: [new TextRun({ text: "Executive Summary", bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
             }),
-            ...(kpiReport.executiveSummary ? [
+            ...(kpiReport.executive_summary ? [
               new Paragraph({
                 children: [new TextRun({ text: "Overall Assessment", bold: true, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
                 spacing: { before: 120 }
               }),
               new Paragraph({
-                children: [new TextRun({ text: kpiReport.executiveSummary.overall_assessment, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                children: [new TextRun({ text: kpiReport.executive_summary.overall_assessment, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
                 spacing: { before: 80, after: 120 }
               }),
               new Paragraph({
@@ -281,7 +281,7 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
                 spacing: { before: 120 }
               }),
               new Paragraph({
-                children: [new TextRun({ text: kpiReport.executiveSummary.performance_statement, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                children: [new TextRun({ text: kpiReport.executive_summary.performance_statement, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
                 spacing: { before: 80, after: 120 }
               }),
               new Paragraph({
@@ -289,7 +289,7 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
                 spacing: { before: 120 }
               }),
               new Paragraph({
-                children: [new TextRun({ text: kpiReport.executiveSummary.infrastructure_stability, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                children: [new TextRun({ text: kpiReport.executive_summary.infrastructure_stability, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
                 spacing: { before: 80, after: 120 }
               }),
               new Paragraph({
@@ -297,7 +297,7 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
                 spacing: { before: 120 }
               }),
               new Paragraph({
-                children: [new TextRun({ text: kpiReport.executiveSummary.key_findings, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                children: [new TextRun({ text: kpiReport.executive_summary.key_findings, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
                 spacing: { before: 80, after: 120 }
               }),
               new Paragraph({
@@ -305,7 +305,7 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
                 spacing: { before: 120 }
               }),
               new Paragraph({
-                children: [new TextRun({ text: kpiReport.executiveSummary.outlook, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                children: [new TextRun({ text: kpiReport.executive_summary.outlook, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
                 spacing: { before: 80, after: 200 }
               }),
             ] : []),
