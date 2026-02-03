@@ -151,8 +151,8 @@ const App: React.FC = () => {
   };
 
   const pieData = reportData ? [
-    { name: 'Success', value: reportData.successRate, color: '#10b981' },
-    { name: 'Failure', value: reportData.failureRate, color: '#ef4444' }
+    { name: 'Success', value: reportData.successRate, color: '#16a34a' },
+    { name: 'Failure', value: reportData.failureRate, color: '#f59e0b' }
   ] : [];
 
   const totalDeclines = useMemo(() => {
@@ -179,17 +179,18 @@ const App: React.FC = () => {
   }, [reportData]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50" style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-slate-100" style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
+      <header className="bg-white/90 backdrop-blur border-b border-slate-200 shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-lg overflow-hidden bg-slate-100 p-1">
+            <div className="h-12 w-12 rounded-lg overflow-hidden bg-slate-100 p-1 border border-slate-200">
               <img src="/bob-logo.svg" alt="Bank of Bhutan" className="h-full w-full object-contain" />
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Acquiring KPI Dashboard</p>
               <h1 className="text-2xl font-bold text-slate-900">Transaction Performance & Decline Analytics</h1>
+              <p className="text-xs text-slate-500 font-medium mt-1">Tier-1 banking-grade monitoring for {reportType} acquiring</p>
             </div>
           </div>
 
@@ -218,10 +219,10 @@ const App: React.FC = () => {
               ))}
             </div>
 
-            <label htmlFor="file-upload" className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer hover:border-slate-400">
+            <label htmlFor="file-upload" className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer hover:border-slate-400 shadow-sm">
               Import Ledger
             </label>
-            <button onClick={handleDownload} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider">
+            <button onClick={handleDownload} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm">
               Report Export
             </button>
           </div>
@@ -229,7 +230,7 @@ const App: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
         <input type="file" id="file-upload" className="hidden" accept=".xlsx" onChange={handleFileUpload} />
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -249,29 +250,68 @@ const App: React.FC = () => {
         )}
         {UI_VIEW && (
           <div className="space-y-6">
+            {!reportData && !loading && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-10 shadow-sm">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Dashboard Status</p>
+                      <h2 className="text-2xl font-bold text-slate-900">Awaiting Ledger Upload</h2>
+                      <p className="text-sm text-slate-500 mt-2">Upload a POS, ATM, or IPG ledger to populate KPI metrics and decline charts.</p>
+                    </div>
+                    <div className="hidden md:flex items-center gap-3">
+                      <div className="px-4 py-2 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold uppercase tracking-widest">System Ready</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    {['Authorization Outcomes', 'Decline Distribution', 'Technical Response Profile'].map((label) => (
+                      <div key={label} className="border border-dashed border-slate-200 rounded-xl p-4 text-sm text-slate-400">
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             {/* KPI Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Success Rate</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{reportData ? `${reportData.successRate.toFixed(2)}%` : '—'}</p>
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Success Rate</p>
+                  <div className="h-9 w-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">▲</div>
+                </div>
+                <p className="text-3xl font-bold text-slate-900 mt-3">{reportData ? `${reportData.successRate.toFixed(2)}%` : '—'}</p>
+                <p className="text-xs text-slate-400 mt-1">Authorization success</p>
               </div>
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Failure Rate</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{reportData ? `${reportData.failureRate.toFixed(2)}%` : '—'}</p>
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Failure Rate</p>
+                  <div className="h-9 w-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">●</div>
+                </div>
+                <p className="text-3xl font-bold text-slate-900 mt-3">{reportData ? `${reportData.failureRate.toFixed(2)}%` : '—'}</p>
+                <p className="text-xs text-slate-400 mt-1">Authorization declines</p>
               </div>
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Transactions</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{reportData ? reportData.totalTransactions.toLocaleString() : '—'}</p>
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Transactions</p>
+                  <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">■</div>
+                </div>
+                <p className="text-3xl font-bold text-slate-900 mt-3">{reportData ? reportData.totalTransactions.toLocaleString() : '—'}</p>
+                <p className="text-xs text-slate-400 mt-1">Processed volume</p>
               </div>
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Declines</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{reportData ? totalDeclines.toLocaleString() : '—'}</p>
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Declines</p>
+                  <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">◆</div>
+                </div>
+                <p className="text-3xl font-bold text-slate-900 mt-3">{reportData ? totalDeclines.toLocaleString() : '—'}</p>
+                <p className="text-xs text-slate-400 mt-1">Decline volume</p>
               </div>
             </div>
 
             {/* Graphs */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Transaction Performance</p>
@@ -286,7 +326,7 @@ const App: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                <div ref={performanceChartRef} className="h-72">
+                <div ref={performanceChartRef} className="h-72 bg-slate-50 rounded-xl p-3">
                   {reportData ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -302,7 +342,7 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Decline Distribution</p>
@@ -317,7 +357,7 @@ const App: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                <div ref={businessChartRef} className="h-72">
+                <div ref={businessChartRef} className="h-72 bg-slate-50 rounded-xl p-3">
                   {businessDeclineData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={businessDeclineData} layout="vertical" margin={{ left: 40 }}>
@@ -325,7 +365,7 @@ const App: React.FC = () => {
                         <XAxis type="number" />
                         <YAxis type="category" dataKey="name" width={160} />
                         <Tooltip />
-                        <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 4, 4]} />
+                        <Bar dataKey="value" fill="#f59e0b" radius={[4, 4, 4, 4]} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -336,7 +376,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Technical Response Profile</p>
@@ -351,7 +391,7 @@ const App: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                <div ref={technicalChartRef} className="h-72">
+                <div ref={technicalChartRef} className="h-72 bg-slate-50 rounded-xl p-3">
                   {technicalDeclineData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={technicalDeclineData} layout="vertical" margin={{ left: 40 }}>
@@ -359,7 +399,7 @@ const App: React.FC = () => {
                         <XAxis type="number" />
                         <YAxis type="category" dataKey="name" width={160} />
                         <Tooltip />
-                        <Bar dataKey="value" fill="#f97316" radius={[4, 4, 4, 4]} />
+                        <Bar dataKey="value" fill="#16a34a" radius={[4, 4, 4, 4]} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
