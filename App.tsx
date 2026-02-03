@@ -59,11 +59,20 @@ const App: React.FC = () => {
       console.log('Starting document generation...');
       console.log('Report data:', reportData);
       console.log('KPI report:', kpiReport);
-      await generateDocx(reportData, kpiReport || undefined);
-      console.log('Document generated successfully');
+      
+      setError(null);
+      
+      console.log('Calling generateDocx...');
+      const result = await generateDocx(reportData, kpiReport || undefined);
+      console.log('Document generated successfully, result:', result);
+      
+      setError(null);
     } catch (err: any) {
-      console.error('Download error:', err);
-      setError(`Failed to generate Word document: ${err.message || err}`);
+      console.error('Download error details:', err);
+      console.error('Error stack:', err.stack);
+      const errorMsg = err.message || String(err);
+      console.error('Final error message:', errorMsg);
+      setError(`Failed to generate Word document: ${errorMsg}`);
     }
   };
 

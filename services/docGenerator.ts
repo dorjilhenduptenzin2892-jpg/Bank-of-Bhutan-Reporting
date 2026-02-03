@@ -10,21 +10,25 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
   const HEADING_SIZE = 24;
   const TITLE_SIZE = 32;
 
+  console.log('Starting document creation...');
+  console.log('Creating document with reportData:', data);
+  console.log('KPI Report present:', !!kpiReport);
+
   const doc = new Document({
-    styles: {
-      default: {
-        document: {
-          run: {
-            font: DEFAULT_FONT,
-            size: DEFAULT_SIZE,
-          },
+  styles: {
+    default: {
+      document: {
+        run: {
+          font: DEFAULT_FONT,
+          size: DEFAULT_SIZE,
         },
       },
     },
-    sections: [
-      {
-        properties: {},
-        children: [
+  },
+  sections: [
+    {
+      properties: {},
+      children: [
           // 1. MAIN TITLE
           new Paragraph({
             alignment: AlignmentType.CENTER,
@@ -315,7 +319,19 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
     ],
   });
 
-  const blob = await Packer.toBlob(doc);
-  const safeYear = data.year.replace(/[^0-9]/g, '');
-  saveAs(blob, `${data.reportType}_Acquiring_Report_${safeYear}_${Date.now()}.docx`);
+  try {
+    console.log('Converting document to blob...');
+    const blob = await Packer.toBlob(doc);
+    console.log('Blob created successfully, size:', blob.size);
+    
+    const safeYear = data.year.replace(/[^0-9]/g, '');
+    const filename = `${data.reportType}_Acquiring_Report_${safeYear}_${Date.now()}.docx`;
+    console.log('Saving file as:', filename);
+    
+    saveAs(blob, filename);
+    console.log('File save triggered successfully');
+  } catch (blobErr: any) {
+    console.error('Error during blob creation or file save:', blobErr);
+    throw new Error(`Document generation failed: ${blobErr.message}`);
+  }
 }
