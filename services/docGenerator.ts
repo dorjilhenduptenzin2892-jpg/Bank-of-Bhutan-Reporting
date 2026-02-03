@@ -147,34 +147,7 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
           }),
           new Paragraph({ text: "", spacing: { after: 400 } }),
 
-          // 6. ANALYSIS SECTION
-          new Paragraph({
-            heading: HeadingLevel.HEADING_2,
-            children: [new TextRun({ text: `Analysis – ${data.dateRange}`, bold: true, size: HEADING_SIZE + 4, font: DEFAULT_FONT })],
-          }),
-          ...data.narrative.split('\n').map(line => {
-            const trimmed = line.trim();
-            if (!trimmed) return new Paragraph({ text: "" });
-
-            // Check if this line is a specific analysis heading to be bolded
-            const isSectionHeader = trimmed.toLowerCase().includes('business decline analysis') || 
-                                    trimmed.toLowerCase().includes('technical decline analysis');
-
-            return new Paragraph({
-              children: [
-                new TextRun({ 
-                  text: trimmed, 
-                  size: DEFAULT_SIZE, 
-                  font: DEFAULT_FONT,
-                  bold: isSectionHeader 
-                })
-              ],
-              spacing: { before: isSectionHeader ? 240 : 120 }
-            });
-          }),
-          new Paragraph({ text: "", spacing: { after: 400 } }),
-
-          // 7. KPI INTELLIGENCE SECTION
+          // 6. KPI INTELLIGENCE SECTION
           ...(kpiReport ? [
             new Paragraph({
               heading: HeadingLevel.HEADING_2,
