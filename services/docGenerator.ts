@@ -384,27 +384,47 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
           if (ent.pie_svg) markerMap[`__PIE_ENTITY_${i}__`] = ent.pie_svg;
         });
 
+        console.log('Marker map keys:', Object.keys(markerMap));
+
+        // Collect indices to replace (process in reverse to avoid index shifting)
+        const replacements: Array<{ idx: number; marker: string; svg: string }> = [];
+
         for (let i = 0; i < section.length; i++) {
           const p = section[i];
           try {
-            if (!(p && p.root && p.root[0] && p.root[0].options && p.root[0].options.children)) continue;
-            const text = p.root[0].options.children.map((c: any) => c.text || '').join('').trim();
-            if (!text) continue;
-            const svgForMarker = markerMap[text];
-            if (svgForMarker) {
-              try {
-                const pngBytes = await svgDataUrlToPngUint8Array(svgForMarker);
-                const imgParagraph = new Paragraph({
-                  children: [new ImageRun({ data: pngBytes, transformation: { width: 420, height: 300 } })],
-                  spacing: { after: 200 }
-                });
-                section.splice(i, 1, imgParagraph);
-                // advance index past inserted paragraph
-              } catch (e) {
-                console.warn('Failed to convert/insert pie for marker', text, e);
-              }
+            // Extract text from paragraph children
+            let paragraphText = '';
+            if (p && p.root && p.root[0] && p.root[0].options && p.root[0].options.children) {
+              paragraphText = p.root[0].options.children.map((c: any) => c.text || '').join('').trim();
             }
-          } catch (_) { /* continue */ }
+
+            console.log(`Paragraph ${i}: "${paragraphText}"`);
+
+            // Check if this is a marker
+            const markerKey = Object.keys(markerMap).find(key => key === paragraphText);
+            if (markerKey) {
+              console.log(`Found marker at index ${i}: ${markerKey}`);
+              replacements.push({ idx: i, marker: markerKey, svg: markerMap[markerKey] });
+            }
+          } catch (err) {
+            // continue
+          }
+        }
+
+        // Process replacements in reverse order to avoid index shifting
+        for (let r = replacements.length - 1; r >= 0; r--) {
+          const { idx, marker, svg } = replacements[r];
+          try {
+            const pngBytes = await svgDataUrlToPngUint8Array(svg);
+            const imgParagraph = new Paragraph({
+              children: [new ImageRun({ data: pngBytes, transformation: { width: 420, height: 300 } })],
+              spacing: { after: 200 }
+            });
+            section.splice(idx, 1, imgParagraph);
+            console.log(`Replaced marker ${marker} at index ${idx}`);
+          } catch (e) {
+            console.warn(`Failed to convert/insert pie for marker ${marker}:`, e);
+          }
         }
       }
     } catch (e) {
