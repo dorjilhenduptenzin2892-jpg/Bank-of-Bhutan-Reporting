@@ -100,10 +100,22 @@ export async function processExcel(file: File, reportType: ReportType): Promise<
         let businessFailures = await mapToStandardized(Object.entries(businessMap), false);
         const technicalFailures = await mapToStandardized(Object.entries(technicalMap), true);
 
-        // Always include top 10 business declines across all channels (no minimum volume threshold)
-        businessFailures = businessFailures
-          .sort((a, b) => b.volume - a.volume)
-          .slice(0, 10);
+        // Include up to top 10 business declines. Apply minimum-volume preference only when there are more than 10.
+        businessFailures = businessFailures.sort((a, b) => b.volume - a.volume);
+        if (businessFailures.length > 10) {
+          const preferred = businessFailures.filter(f => f.volume >= 50);
+          if (preferred.length >= 10) {
+            businessFailures = preferred.slice(0, 10);
+          } else {
+            const preferredSet = new Set(preferred.map(f => `${f.description}::${f.volume}::${f.typicalCause}`));
+            const remainder = businessFailures.filter(
+              f => !preferredSet.has(`${f.description}::${f.volume}::${f.typicalCause}`)
+            );
+            businessFailures = [...preferred, ...remainder].slice(0, 10);
+          }
+        } else {
+          businessFailures = businessFailures.slice(0, 10);
+        }
 
         technicalFailures.sort((a, b) => b.volume - a.volume);
 

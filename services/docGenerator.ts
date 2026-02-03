@@ -10,6 +10,10 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
   const HEADING_SIZE = 24;
   const TITLE_SIZE = 32;
 
+  const businessFailures = (data.businessFailures || [])
+    .filter(f => (f.volume ?? 0) > 0)
+    .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))
+    .slice(0, 10);
   const technicalFailures = (data.technicalFailures || []).filter(f => (f.volume ?? 0) > 0);
 
   console.log('Starting document creation...');
@@ -100,7 +104,7 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
           // 4. TOP BUSINESS FAILURE SECTION
           new Paragraph({
             heading: HeadingLevel.HEADING_3,
-            children: [new TextRun({ text: `Top ${data.reportType} Business failure`, bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
+            children: [new TextRun({ text: `Top 10 ${data.reportType} Business Failure`, bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
           }),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
@@ -112,7 +116,7 @@ export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligence
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Typical Cause", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
                 ],
               }),
-              ...data.businessFailures.map(f => new TableRow({
+              ...businessFailures.map(f => new TableRow({
                 children: [
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: f.description, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: f.volume.toString(), font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),

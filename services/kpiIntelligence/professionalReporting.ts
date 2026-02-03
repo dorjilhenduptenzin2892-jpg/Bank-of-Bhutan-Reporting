@@ -124,8 +124,8 @@ function generateBusinessDeclineProfile(reportData: ReportData, channelType: Rep
   const totalFailures = (reportData.businessFailures || []).length + (reportData.technicalFailures || []).length;
   const totalDeclineVolume = businessFailures.reduce((sum, f) => sum + (f.volume || 0), 0);
 
-  // Number of drivers to show: IPG requires up to 10, others default to 3
-  const numDrivers = channelType === 'IPG' ? 10 : 3;
+  // Number of drivers to show: always up to 10 across all channels
+  const numDrivers = 10;
 
   // Top drivers (up to numDrivers)
   const topDrivers = businessFailures.slice(0, numDrivers)
