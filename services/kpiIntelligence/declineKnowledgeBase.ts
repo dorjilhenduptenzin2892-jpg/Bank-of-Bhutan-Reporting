@@ -60,7 +60,7 @@ export const DECLINE_KNOWLEDGE_BASE: Record<string, DeclineEntry> = {
       'Withdrawal or transaction limit constraints'
     ],
     neutral_explanation:
-      'The transaction was declined because the cardholder's available balance was insufficient for the transaction amount.',
+      "The transaction was declined because the cardholder's available balance was insufficient for the transaction amount.",
     regulator_safe_statement:
       'Insufficient funds declines reflect cardholder account status and represent normal transaction behavior in acquiring environments.',
     severity_score: 3,

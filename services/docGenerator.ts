@@ -2,8 +2,9 @@
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeadingLevel, AlignmentType } from 'docx';
 import saveAs from 'file-saver';
 import { ReportData } from '../types';
+import { KPIIntelligenceReport } from './kpiIntelligence';
 
-export async function generateDocx(data: ReportData) {
+export async function generateDocx(data: ReportData, kpiReport?: KPIIntelligenceReport) {
   const DEFAULT_FONT = "Calibri";
   const DEFAULT_SIZE = 22; // 11pt
   const HEADING_SIZE = 24;
@@ -167,6 +168,148 @@ export async function generateDocx(data: ReportData) {
               spacing: { before: isSectionHeader ? 240 : 120 }
             });
           }),
+          new Paragraph({ text: "", spacing: { after: 400 } }),
+
+          // 7. KPI INTELLIGENCE SECTION
+          ...(kpiReport ? [
+            new Paragraph({
+              heading: HeadingLevel.HEADING_2,
+              children: [new TextRun({ text: "KPI Intelligence & Analysis", bold: true, size: HEADING_SIZE + 4, font: DEFAULT_FONT })],
+            }),
+            new Paragraph({ text: "", spacing: { after: 200 } }),
+
+            // 7a. RESPONSIBILITY DISTRIBUTION
+            new Paragraph({
+              heading: HeadingLevel.HEADING_3,
+              children: [new TextRun({ text: "Responsibility Distribution Analysis", bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
+            }),
+            new Table({
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: [
+                new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Entity", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Responsibility %", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Status", bold: true, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                  ],
+                }),
+                ...(kpiReport.responsibilityDistribution.entities || []).map((entity: any) => new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: entity.name, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${(entity.percentage * 100).toFixed(1)}%`, font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: entity.status || 'Monitored', font: DEFAULT_FONT, size: DEFAULT_SIZE })] })] }),
+                  ],
+                })),
+              ],
+            }),
+            new Paragraph({ text: "", spacing: { after: 200 } }),
+            ...(kpiReport.responsibilityDistribution.explanation ? [
+              new Paragraph({
+                children: [new TextRun({ text: kpiReport.responsibilityDistribution.explanation, size: DEFAULT_SIZE, font: DEFAULT_FONT, italics: true })],
+                spacing: { before: 120, after: 200 }
+              }),
+            ] : []),
+
+            // 7b. KEY INSIGHTS
+            new Paragraph({
+              heading: HeadingLevel.HEADING_3,
+              children: [new TextRun({ text: "Key Insights", bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
+            }),
+            ...(kpiReport.insights || []).slice(0, 5).map((insight: any) => [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `• ${insight.title}`,
+                    bold: true,
+                    size: DEFAULT_SIZE,
+                    font: DEFAULT_FONT,
+                  })
+                ],
+                spacing: { before: 120 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: insight.description, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 80, after: 120 }
+              }),
+            ]).flat(),
+            new Paragraph({ text: "", spacing: { after: 200 } }),
+
+            // 7c. RECOMMENDATIONS
+            new Paragraph({
+              heading: HeadingLevel.HEADING_3,
+              children: [new TextRun({ text: "Key Recommendations", bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
+            }),
+            ...(kpiReport.recommendations || []).slice(0, 5).map((rec: any) => [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `${rec.priority.toUpperCase()} - ${rec.area}`,
+                    bold: true,
+                    size: DEFAULT_SIZE,
+                    font: DEFAULT_FONT,
+                  })
+                ],
+                spacing: { before: 120 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: `Action: ${rec.action}`, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 80 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: `Rationale: ${rec.rationale}`, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 80, after: 120 }
+              }),
+            ]).flat(),
+            new Paragraph({ text: "", spacing: { after: 200 } }),
+
+            // 7d. EXECUTIVE SUMMARY
+            new Paragraph({
+              heading: HeadingLevel.HEADING_3,
+              children: [new TextRun({ text: "Executive Summary", bold: true, size: HEADING_SIZE + 2, font: DEFAULT_FONT })],
+            }),
+            ...(kpiReport.executiveSummary ? [
+              new Paragraph({
+                children: [new TextRun({ text: "Overall Assessment", bold: true, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 120 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: kpiReport.executiveSummary.overall_assessment, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 80, after: 120 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: "Performance Statement", bold: true, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 120 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: kpiReport.executiveSummary.performance_statement, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 80, after: 120 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: "Infrastructure Stability", bold: true, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 120 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: kpiReport.executiveSummary.infrastructure_stability, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 80, after: 120 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: "Key Findings", bold: true, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 120 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: kpiReport.executiveSummary.key_findings, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 80, after: 120 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: "Outlook", bold: true, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 120 }
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: kpiReport.executiveSummary.outlook, size: DEFAULT_SIZE, font: DEFAULT_FONT })],
+                spacing: { before: 80, after: 200 }
+              }),
+            ] : []),
+          ] : []),
         ],
       },
     ],

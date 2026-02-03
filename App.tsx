@@ -4,18 +4,21 @@ import { processExcel } from './services/excelProcessor';
 import { generateDocx } from './services/docGenerator';
 import { generateNarrative } from './services/geminiService';
 import { ReportData, ReportType } from './types';
+import { KPIIntelligenceReport } from './services/kpiIntelligence';
 import { ResponsiveContainer, Cell, PieChart, Pie, Tooltip } from 'recharts';
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [kpiReport, setKpiReport] = useState<KPIIntelligenceReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reportType, setReportType] = useState<ReportType>('POS');
 
   const handleTypeChange = (type: ReportType) => {
     setReportType(type);
     setReportData(null);
+    setKpiReport(null);
     setError(null);
   };
 
@@ -26,16 +29,18 @@ const App: React.FC = () => {
     setLoading(true);
     setError(null);
     setReportData(null);
+    setKpiReport(null);
     
     try {
       setLoadingStep('Parsing Excel data...');
-      const data = await processExcel(file, reportType);
+      const result = await processExcel(file, reportType);
       
       setLoadingStep('Generating AI-powered narrative analysis...');
-      const narrative = await generateNarrative(data);
+      const narrative = await generateNarrative(result.reportData);
       
-      const finalData = { ...data, narrative };
+      const finalData = { ...result.reportData, narrative };
       setReportData(finalData);
+      setKpiReport(result.kpiIntelligence);
     } catch (err: any) {
       setError(err.message || 'Failed to process file. Please check the Excel format.');
       console.error(err);
@@ -51,7 +56,7 @@ const App: React.FC = () => {
   const handleDownload = async () => {
     if (!reportData) return;
     try {
-      await generateDocx(reportData);
+      await generateDocx(reportData, kpiReport || undefined);
     } catch (err) {
       setError('Failed to generate Word document.');
     }
@@ -232,7 +237,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="flex justify-center pb-24 pt-12">
-               <button onClick={() => setReportData(null)} className="flex items-center gap-3 text-slate-400 hover:text-slate-900 font-black text-[11px] uppercase tracking-[0.25em] transition-all">
+               <button onClick={() => { setReportData(null); setKpiReport(null); }} className="flex items-center gap-3 text-slate-400 hover:text-slate-900 font-black text-[11px] uppercase tracking-[0.25em] transition-all">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 0118 0z" />
                 </svg>

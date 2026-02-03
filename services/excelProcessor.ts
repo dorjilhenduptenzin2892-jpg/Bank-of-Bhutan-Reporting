@@ -3,8 +3,14 @@ import * as XLSX from 'xlsx';
 import { TransactionRecord, ReportData, StandardizedDecline, ReportType } from '../types';
 import { BUSINESS_CODE_DICTIONARY, TECHNICAL_CODE_DICTIONARY, REASON_NORMALIZATION } from '../constants';
 import { generateTypicalCause } from './geminiService';
+import { analyzeKPIIntelligence, KPIIntelligenceReport } from './kpiIntelligence';
 
-export async function processExcel(file: File, reportType: ReportType): Promise<ReportData> {
+export interface ProcessedReportWithKPI {
+  reportData: ReportData;
+  kpiIntelligence: KPIIntelligenceReport;
+}
+
+export async function processExcel(file: File, reportType: ReportType): Promise<ProcessedReportWithKPI> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -102,7 +108,7 @@ export async function processExcel(file: File, reportType: ReportType): Promise<
 
         technicalFailures.sort((a, b) => b.volume - a.volume);
 
-        resolve({
+        const reportData: ReportData = {
           reportType,
           successRate,
           failureRate,
@@ -112,6 +118,14 @@ export async function processExcel(file: File, reportType: ReportType): Promise<
           technicalFailures,
           totalTransactions: rawData.length,
           narrative: '' 
+        };
+
+        // Generate KPI Intelligence
+        const kpiIntelligence = analyzeKPIIntelligence(reportData);
+
+        resolve({
+          reportData,
+          kpiIntelligence
         });
 
       } catch (err) {
