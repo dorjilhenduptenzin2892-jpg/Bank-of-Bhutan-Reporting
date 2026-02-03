@@ -119,7 +119,7 @@ const App: React.FC = () => {
                   Select your analysis track and upload transaction ledger.
                 </p>
 
-                <div className="flex justify-center gap-4 mb-10">
+                <div className="flex justify-center gap-4 mb-10 flex-wrap">
                   <button 
                     onClick={() => handleTypeChange('POS')}
                     className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${reportType === 'POS' ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
@@ -131,6 +131,12 @@ const App: React.FC = () => {
                     className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${reportType === 'ATM' ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
                   >
                     ATM Analysis
+                  </button>
+                  <button 
+                    onClick={() => handleTypeChange('IPG')}
+                    className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${reportType === 'IPG' ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                  >
+                    IPG Analysis
                   </button>
                 </div>
 
