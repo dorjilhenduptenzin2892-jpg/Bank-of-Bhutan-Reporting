@@ -410,47 +410,6 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-            {/* KPI Section */}
-            {kpiReport && (
-              <div className="bg-white p-10 rounded-2xl shadow-lg border border-slate-200">
-                <h3 className="text-2xl font-bold text-slate-900 mb-8">KPI Intelligence</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Executive Summary */}
-                  {kpiReport.professional_report?.executive_summary && (
-                    <div className="p-6 bg-blue-50 rounded-xl border border-blue-200">
-                      <h4 className="text-sm font-bold text-blue-900 uppercase tracking-widest mb-4">Executive Summary</h4>
-                      <p className="text-base text-blue-800 leading-relaxed">{kpiReport.professional_report.executive_summary}</p>
-                    </div>
-                  )}
-                  {/* Key Insights */}
-                  {kpiReport.professional_report?.key_insights && (
-                    <div className="p-6 bg-emerald-50 rounded-xl border border-emerald-200">
-                      <h4 className="text-sm font-bold text-emerald-900 uppercase tracking-widest mb-4">Key Insights</h4>
-                      <ul className="space-y-2 text-base text-emerald-800">
-                        {kpiReport.professional_report.key_insights.slice(0, 3).map((insight, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="text-emerald-600 font-bold mt-1">•</span>
-                            <span>{insight}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Reset Button */}
-            <div className="flex justify-center pb-12 pt-8">
-               <button onClick={() => { setReportData(null); setKpiReport(null); }} className="flex items-center gap-3 text-slate-600 hover:text-slate-900 font-bold text-sm uppercase tracking-wider transition-all hover:gap-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 0118 0z" />
-                </svg>
-                Back to Selection
-              </button>
-            </div>
-          </div>
-        )}
       </main>
 
       {/* Footer */}
