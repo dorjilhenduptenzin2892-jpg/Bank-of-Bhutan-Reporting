@@ -28,8 +28,6 @@ const App: React.FC = () => {
   const [comparisons, setComparisons] = useState<ComparisonResult[]>([]);
   const [executiveSummary, setExecutiveSummary] = useState('');
   const [dateRange, setDateRange] = useState('');
-  const [weeklyStart, setWeeklyStart] = useState('');
-  const [weeklyEnd, setWeeklyEnd] = useState('');
   const [bucketFocus, setBucketFocus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [reportType, setReportType] = useState<ReportType>('POS');
@@ -69,19 +67,6 @@ const App: React.FC = () => {
     setDateRange(range);
   }, [period, reportType, transactions]);
 
-  const weeklyBounds = useMemo(() => {
-    const dates = transactions
-      .map((tx) => new Date(tx.transaction_datetime))
-      .filter((d) => !isNaN(d.getTime()))
-      .sort((a, b) => a.getTime() - b.getTime());
-    const min = dates[0];
-    const max = dates[dates.length - 1];
-    return {
-      min: min ? min.toISOString().slice(0, 10) : '',
-      max: max ? max.toISOString().slice(0, 10) : ''
-    };
-  }, [transactions]);
-
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -114,33 +99,6 @@ const App: React.FC = () => {
     try {
       setError(null);
       let exportTransactions = transactions;
-
-      if (period === 'WEEKLY') {
-        if (!weeklyStart || !weeklyEnd) {
-          throw new Error('Weekly export requires a start and end date.');
-        }
-
-        const startDate = new Date(`${weeklyStart}T00:00:00`);
-        const endDate = new Date(`${weeklyEnd}T23:59:59.999`);
-
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-          throw new Error('Invalid date format. Use YYYY-MM-DD.');
-        }
-
-        if (endDate < startDate) {
-          throw new Error('End date must be on or after start date.');
-        }
-
-        exportTransactions = transactions.filter((tx) => {
-          const txDate = new Date(tx.transaction_datetime);
-          if (isNaN(txDate.getTime())) return false;
-          return txDate >= startDate && txDate <= endDate;
-        });
-
-        if (exportTransactions.length === 0) {
-          throw new Error(`No transactions found in the selected weekly date range (${weeklyStart} to ${weeklyEnd}).`);
-        }
-      }
 
       const { reportData, kpiReport } = buildCentralBankReportData(reportType, exportTransactions);
       const blob = await generateCentralBankDocxBlob(reportData, kpiReport);
@@ -403,33 +361,9 @@ const App: React.FC = () => {
                 onChange={(e) => setPeriod(e.target.value as PeriodType)}
                 className="text-xs border border-slate-200 rounded px-2 py-1"
               >
-                <option value="WEEKLY">Weekly</option>
                 <option value="MONTHLY">Monthly</option>
               </select>
             </div>
-
-            {period === 'WEEKLY' && (
-              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
-                <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Weekly Range</div>
-                <input
-                  type="date"
-                  value={weeklyStart}
-                  min={weeklyBounds.min || undefined}
-                  max={weeklyBounds.max || undefined}
-                  onChange={(e) => setWeeklyStart(e.target.value)}
-                  className="text-xs border border-slate-200 rounded px-2 py-1"
-                />
-                <span className="text-xs text-slate-400">to</span>
-                <input
-                  type="date"
-                  value={weeklyEnd}
-                  min={weeklyBounds.min || undefined}
-                  max={weeklyBounds.max || undefined}
-                  onChange={(e) => setWeeklyEnd(e.target.value)}
-                  className="text-xs border border-slate-200 rounded px-2 py-1"
-                />
-              </div>
-            )}
 
             <label htmlFor="file-upload" className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer hover:border-slate-400 shadow-sm">
               Import Ledger
