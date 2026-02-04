@@ -4,6 +4,7 @@ import { computeKpiByBucket } from '../lib/kpi';
 import { generateComparisons } from '../lib/comparison';
 import { generateExecutiveSummary } from '../lib/summarizer';
 import { generateManagementDocxBuffer } from '../lib/managementDocx';
+import { buildManagementNarrative } from '../lib/managementNarrative';
 import { getDateRange, type RawTransaction } from '../lib/bucketing';
 
 export const config = {
@@ -40,13 +41,21 @@ export default async function handler(req: IncomingMessage & { body?: any; metho
       ? `${start.toLocaleDateString()} – ${end.toLocaleDateString()}`
       : 'N/A';
 
+    const narrative = buildManagementNarrative({
+      channel,
+      period,
+      transactions: filtered,
+      buckets
+    });
+
     const buffer = await generateManagementDocxBuffer({
       channel,
       period,
       dateRange,
       buckets,
       comparisons,
-      executiveSummary
+      executiveSummary,
+      narrative
     });
 
     res.statusCode = 200;

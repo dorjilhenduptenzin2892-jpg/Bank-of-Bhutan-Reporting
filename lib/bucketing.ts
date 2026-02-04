@@ -1,10 +1,12 @@
-export type PeriodType = 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+export type PeriodType = 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'QUARTERLY' | 'CUSTOM';
 
 export interface RawTransaction {
   transaction_datetime: string | Date;
   channel: 'POS' | 'ATM' | 'IPG';
   response_code: string;
   response_description?: string;
+  card_network?: string;
+  mid?: string;
   amount?: number;
 }
 
@@ -48,6 +50,9 @@ export function bucketTransactions(
       key = `${year}-W${pad2(week)}`;
     } else if (period === 'MONTHLY') {
       key = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
+    } else if (period === 'QUARTERLY') {
+      const quarter = Math.floor(date.getMonth() / 3) + 1;
+      key = `${date.getFullYear()}-Q${quarter}`;
     } else {
       key = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
     }

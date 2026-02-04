@@ -42,6 +42,8 @@ export async function processExcel(
             channel: reportType,
             response_code: String(tx.RESPONSE_CODE || '').trim(),
             response_description: tx.RESPONSE_REASON || tx.RESPONSE_CATEGORY || 'Unknown',
+            card_network: tx.CARD_NETWORK,
+            mid: tx.MID,
             amount: tx.VALUE
           };
         });

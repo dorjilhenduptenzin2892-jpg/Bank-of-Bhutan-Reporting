@@ -2,6 +2,7 @@ import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, 
 import type { ReportType } from '../types';
 import type { BucketKPI, DeclineRecord } from './kpi';
 import type { ComparisonResult } from './comparison';
+import type { ManagementNarrative } from './managementNarrative';
 
 function buildHeaderCell(text: string) {
   return new TableCell({
@@ -49,8 +50,9 @@ function buildManagementDocument(params: {
   buckets: BucketKPI[];
   comparisons: ComparisonResult[];
   executiveSummary: string;
+  narrative: ManagementNarrative;
 }): Document {
-  const { channel, period, dateRange, buckets, comparisons, executiveSummary } = params;
+  const { channel, period, dateRange, buckets, comparisons, executiveSummary, narrative } = params;
 
   const sections: Array<Paragraph | Table> = [
     new Paragraph({
@@ -60,6 +62,42 @@ function buildManagementDocument(params: {
     new Paragraph({ text: `Reporting Period: ${dateRange}` }),
     new Paragraph({ text: '' })
   ];
+
+  sections.push(
+    new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Executive Overview', bold: true })] }),
+    new Paragraph({ text: narrative.executiveOverview }),
+    new Paragraph({ text: '' }),
+    new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Transaction Performance Analysis', bold: true })] }),
+    new Paragraph({ text: narrative.transactionPerformance }),
+    new Paragraph({ text: '' }),
+    new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Decline Structure Analysis', bold: true })] }),
+    new Paragraph({ text: narrative.declineCategoryDistribution }),
+    new Paragraph({ text: narrative.dominantDrivers }),
+    new Paragraph({ text: narrative.declineTrends }),
+    new Paragraph({ text: '' }),
+    new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Scheme-Level Behaviour Analysis', bold: true })] }),
+    new Paragraph({ text: narrative.schemeAnalysis }),
+    new Paragraph({ text: '' }),
+    new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Channel-Specific Behavioural Insights', bold: true })] }),
+    new Paragraph({ text: narrative.channelInsights }),
+    new Paragraph({ text: '' }),
+    new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Trend Intelligence Summary', bold: true })] }),
+    ...narrative.trendIntelligence.map((item) => new Paragraph({ text: `• ${item}` })),
+    new Paragraph({ text: '' }),
+    new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Strategic Observations', bold: true })] }),
+    new Paragraph({ text: narrative.strategicObservations }),
+    new Paragraph({ text: '' }),
+    new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Strategic Recommendations', bold: true })] }),
+    new Paragraph({ text: 'Priority Focus Areas:' }),
+    ...narrative.priorityFocusAreas.map((item) => new Paragraph({ text: `• ${item}` })),
+    new Paragraph({ text: '' }),
+    new Paragraph({ text: 'Continuous Improvement Areas:' }),
+    ...narrative.continuousImprovementAreas.map((item) => new Paragraph({ text: `• ${item}` })),
+    new Paragraph({ text: '' }),
+    new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Formal Management Summary', bold: true })] }),
+    new Paragraph({ text: narrative.formalSummary }),
+    new Paragraph({ text: '' })
+  );
 
   if (buckets.length > 0) {
     const latest = buckets[buckets.length - 1];
@@ -162,6 +200,7 @@ export async function generateManagementDocxBuffer(params: {
   buckets: BucketKPI[];
   comparisons: ComparisonResult[];
   executiveSummary: string;
+  narrative: ManagementNarrative;
 }): Promise<Buffer> {
   const doc = buildManagementDocument(params);
   return Packer.toBuffer(doc);
@@ -174,6 +213,7 @@ export async function generateManagementDocxBlob(params: {
   buckets: BucketKPI[];
   comparisons: ComparisonResult[];
   executiveSummary: string;
+  narrative: ManagementNarrative;
 }): Promise<Blob> {
   const doc = buildManagementDocument(params);
   return Packer.toBlob(doc);
