@@ -9,7 +9,7 @@ import { computeKpiByBucket } from './lib/kpi';
 import { generateComparisons } from './lib/comparison';
 import { generateExecutiveSummary } from './lib/summarizer';
 import { getDateRange } from './lib/bucketing';
-import { ResponsiveContainer, Cell, PieChart, Pie, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
+import { ResponsiveContainer, Cell, PieChart, Pie, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, LabelList } from 'recharts';
 import { generateManagementDocxBlob } from './lib/managementDocx';
 import { buildManagementNarrative } from './lib/managementNarrative';
 import { generateCentralBankDocxBlob } from './lib/centralBankDocx';
@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [dateRange, setDateRange] = useState('');
   const [weeklyStart, setWeeklyStart] = useState('');
   const [weeklyEnd, setWeeklyEnd] = useState('');
+  const [bucketFocus, setBucketFocus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [reportType, setReportType] = useState<ReportType>('POS');
   const [period, setPeriod] = useState<PeriodType>('MONTHLY');
@@ -57,6 +58,11 @@ const App: React.FC = () => {
     const { start, end } = getDateRange(transactions);
     const range = start && end ? `${start.toLocaleDateString()} – ${end.toLocaleDateString()}` : 'N/A';
     setBuckets(updatedBuckets);
+    if (updatedBuckets.length > 0) {
+      setBucketFocus(updatedBuckets[updatedBuckets.length - 1].period);
+    } else {
+      setBucketFocus('');
+    }
     setComparisons(updatedComparisons);
     setExecutiveSummary(updatedSummary);
     setDateRange(range);
@@ -280,7 +286,11 @@ const App: React.FC = () => {
     img.src = url;
   };
 
-  const currentBucket = useMemo(() => buckets[buckets.length - 1], [buckets]);
+  const currentBucket = useMemo(() => {
+    if (!buckets.length) return undefined;
+    if (!bucketFocus) return buckets[buckets.length - 1];
+    return buckets.find((b) => b.period === bucketFocus) || buckets[buckets.length - 1];
+  }, [bucketFocus, buckets]);
 
   const outcomeData = useMemo(() => {
     if (!currentBucket) return [];
@@ -308,6 +318,23 @@ const App: React.FC = () => {
 
   const comparativeChartData = useMemo(() => (
     buckets.map((b) => ({ period: b.period, success: b.success_rate }))
+  ), [buckets]);
+
+  const successFailureTrendData = useMemo(() => (
+    buckets.map((b) => ({
+      period: b.period,
+      success: b.success_rate,
+      failure: Number((100 - b.success_rate).toFixed(2))
+    }))
+  ), [buckets]);
+
+  const declineTrendData = useMemo(() => (
+    buckets.map((b) => ({
+      period: b.period,
+      business: b.business_rate,
+      user: b.user_rate,
+      technical: b.technical_rate
+    }))
   ), [buckets]);
 
   return (
@@ -339,16 +366,16 @@ const App: React.FC = () => {
               ))}
             </div>
 
-            <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
-              {(['MONTHLY', 'WEEKLY', 'YEARLY'] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${period === p ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:bg-white'}`}
-                >
-                  {p}
-                </button>
-              ))}
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
+              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">View By</label>
+              <select
+                value={period}
+                onChange={(e) => setPeriod(e.target.value as PeriodType)}
+                className="text-xs border border-slate-200 rounded px-2 py-1"
+              >
+                <option value="WEEKLY">Weekly</option>
+                <option value="MONTHLY">Monthly</option>
+              </select>
             </div>
 
             {period === 'WEEKLY' && (
@@ -475,6 +502,19 @@ const App: React.FC = () => {
               <div className="text-sm text-slate-700 font-semibold">Date Range: <span className="text-slate-900">{dateRange || '—'}</span></div>
             </div>
 
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-wrap items-center gap-3">
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Period Focus</div>
+              <select
+                value={bucketFocus}
+                onChange={(e) => setBucketFocus(e.target.value)}
+                className="text-xs border border-slate-200 rounded px-2 py-1"
+              >
+                {buckets.map((b) => (
+                  <option key={b.period} value={b.period}>{b.period}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Graphs */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
@@ -516,22 +556,55 @@ const App: React.FC = () => {
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => copyChartImage(businessChartRef.current)} className="text-xs font-bold uppercase tracking-wider px-3 py-2 border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">
-                      Copy Chart
-                    </button>
-                    <button onClick={() => downloadChartImage(businessChartRef.current, `${reportType}-business-decline.png`)} className="text-xs font-bold uppercase tracking-wider px-3 py-2 border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">
-                      Download Chart
-                    </button>
-                  </div>
-                </div>
-                <div ref={businessChartRef} className="h-72 bg-slate-50 rounded-xl p-3">
-                  {businessDeclineData.length > 0 ? (
+                  {buckets.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={businessDeclineData} layout="vertical" margin={{ left: 40 }}>
+                      <LineChart data={successFailureTrendData}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" />
+                        <XAxis dataKey="period" />
+                        <YAxis />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="success" stroke="#16a34a" strokeWidth={2} dot={{ r: 3 }} label={{ position: 'top', formatter: (value: number) => `${value.toFixed(1)}%` }} />
+                        <Line type="monotone" dataKey="failure" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} label={{ position: 'top', formatter: (value: number) => `${value.toFixed(1)}%` }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                  )}
                         <YAxis type="category" dataKey="name" width={160} />
                         <Tooltip />
                         <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 4, 4]} />
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Decline Distribution Trend</p>
+                  <h3 className="text-lg font-bold text-slate-900">Business vs User vs Technical</h3>
+                </div>
+              </div>
+              <div className="h-72 bg-slate-50 rounded-xl p-3">
+                {buckets.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={declineTrendData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="period" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="business" stackId="a" fill="#2563eb">
+                        <LabelList dataKey="business" position="top" formatter={(value: number) => `${value.toFixed(1)}%`} />
+                      </Bar>
+                      <Bar dataKey="user" stackId="a" fill="#f59e0b">
+                        <LabelList dataKey="user" position="top" formatter={(value: number) => `${value.toFixed(1)}%`} />
+                      </Bar>
+                      <Bar dataKey="technical" stackId="a" fill="#7c3aed">
+                        <LabelList dataKey="technical" position="top" formatter={(value: number) => `${value.toFixed(1)}%`} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                )}
+              </div>
+            </div>
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -607,28 +680,6 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {buckets.length > 1 && (
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Comparative View</p>
-                    <h3 className="text-lg font-bold text-slate-900">Success Rate Trend</h3>
-                  </div>
-                  <div className="text-xs font-semibold text-slate-500">{dateRange || '—'}</div>
-                </div>
-                <div className="h-72 bg-slate-50 rounded-xl p-3">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={comparativeChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="period" />
-                      <YAxis />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="success" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               {[
