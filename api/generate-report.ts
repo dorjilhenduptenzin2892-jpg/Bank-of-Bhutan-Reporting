@@ -3,7 +3,7 @@ import type { ReportType } from '../types';
 import { computeKpiByBucket } from '../lib/kpi';
 import { generateComparisons } from '../lib/comparison';
 import { generateExecutiveSummary } from '../lib/summarizer';
-import { generateReportDocx } from '../lib/docx';
+import { generateReportDocxBuffer } from '../lib/docx';
 import { getDateRange, type RawTransaction } from '../lib/bucketing';
 
 export const config = {
@@ -40,7 +40,7 @@ export default async function handler(req: IncomingMessage & { body?: any; metho
       ? `${start.toLocaleDateString()} – ${end.toLocaleDateString()}`
       : 'N/A';
 
-    const buffer = await generateReportDocx({
+    const buffer = await generateReportDocxBuffer({
       channel,
       period,
       dateRange,

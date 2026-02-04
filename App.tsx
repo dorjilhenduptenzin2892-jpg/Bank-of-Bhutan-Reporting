@@ -10,6 +10,7 @@ import { generateComparisons } from './lib/comparison';
 import { generateExecutiveSummary } from './lib/summarizer';
 import { getDateRange } from './lib/bucketing';
 import { ResponsiveContainer, Cell, PieChart, Pie, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
+import { generateReportDocxBlob } from './lib/docx';
 
 const UI_VIEW = true;
 const REPORT_VIEW = true;
@@ -85,22 +86,47 @@ const App: React.FC = () => {
     if (!transactions.length) return;
     try {
       setError(null);
-      const response = await fetch('/api/generate-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          channel: reportType,
-          period,
-          transactions
-        })
-      });
+      try {
+        const response = await fetch('/api/generate-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            channel: reportType,
+            period,
+            transactions
+          })
+        });
 
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || 'Report generation failed');
+        if (!response.ok) {
+          const message = await response.text();
+          throw new Error(message || 'Report generation failed');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${reportType}_${period}_Report.docx`;
+        link.click();
+        URL.revokeObjectURL(url);
+        return;
+      } catch (apiError) {
+        console.warn('API export failed, falling back to browser DOCX generation.', apiError);
       }
 
-      const blob = await response.blob();
+      if (!buckets.length) {
+        throw new Error('No bucketed data available for report export.');
+      }
+
+      const blob = await generateReportDocxBlob({
+        channel: reportType,
+        period,
+        dateRange: dateRange || 'N/A',
+        buckets,
+        comparisons,
+        executiveSummary
+      });
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

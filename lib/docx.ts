@@ -42,14 +42,14 @@ function buildDeclineTable(title: string, declines: DeclineRecord[]) {
   ];
 }
 
-export async function generateReportDocx(params: {
+function buildReportDocument(params: {
   channel: ReportType;
   period: 'WEEKLY' | 'MONTHLY' | 'YEARLY';
   dateRange: string;
   buckets: BucketKPI[];
   comparisons: ComparisonResult[];
   executiveSummary: string;
-}): Promise<Buffer> {
+}): Document {
   const { channel, period, dateRange, buckets, comparisons, executiveSummary } = params;
 
   const sections: Array<Paragraph | Table> = [
@@ -154,5 +154,29 @@ export async function generateReportDocx(params: {
     ]
   });
 
+  return doc;
+}
+
+export async function generateReportDocxBuffer(params: {
+  channel: ReportType;
+  period: 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  dateRange: string;
+  buckets: BucketKPI[];
+  comparisons: ComparisonResult[];
+  executiveSummary: string;
+}): Promise<Buffer> {
+  const doc = buildReportDocument(params);
   return Packer.toBuffer(doc);
+}
+
+export async function generateReportDocxBlob(params: {
+  channel: ReportType;
+  period: 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  dateRange: string;
+  buckets: BucketKPI[];
+  comparisons: ComparisonResult[];
+  executiveSummary: string;
+}): Promise<Blob> {
+  const doc = buildReportDocument(params);
+  return Packer.toBlob(doc);
 }
