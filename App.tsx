@@ -565,6 +565,60 @@ const App: React.FC = () => {
               ))}
             </div>
 
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest mb-4">Report Snapshot (UI)</h3>
+              <div className="overflow-x-auto mb-6">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="text-slate-500">
+                      <th className="py-2">Success Rate</th>
+                      <th className="py-2">Failure Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="py-2 font-semibold text-slate-700">{currentBucket ? `${currentBucket.success_rate.toFixed(2)}%` : '—'}</td>
+                      <td className="py-2 font-semibold text-slate-700">{currentBucket ? `${(100 - currentBucket.success_rate).toFixed(2)}%` : '—'}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                {[
+                  { title: 'Top 10 Business Declines', data: currentBucket?.business_declines || [] },
+                  { title: 'Top 10 User Declines', data: currentBucket?.user_declines || [] },
+                  { title: 'Top 10 Technical Declines', data: currentBucket?.technical_declines || [] }
+                ].map((block) => (
+                  <div key={`${block.title}-snapshot`} className="border border-slate-200 rounded-xl p-4">
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-3">{block.title}</h4>
+                    {block.data.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="text-slate-500">
+                              <th className="py-2">Description</th>
+                              <th className="py-2 text-right">Count</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {block.data.slice(0, 10).map((d, i) => (
+                              <tr key={`${block.title}-${i}`}>
+                                <td className="py-2 text-slate-600">{d.description}</td>
+                                <td className="py-2 text-right text-slate-700 font-semibold">{d.count.toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-500">No data available</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div>
