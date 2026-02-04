@@ -153,6 +153,40 @@ function buildCentralBankDocument(data: ReportData, kpiReport?: KPIIntelligenceR
   );
 
   if (kpiReport) {
+    const entities = kpiReport.professional_report?.responsibility_distribution_analysis?.entities || [];
+
+    const responseRows = [
+      new TableRow({
+        children: [
+          buildHeaderCell('Entity'),
+          buildHeaderCell('Response Descriptions')
+        ]
+      }),
+      ...entities.map(entity => new TableRow({
+        children: [
+          buildCell(entity.name),
+          buildCell((entity.examples || []).map(ex => (ex as any).description || ex).join('; '))
+        ]
+      }))
+    ];
+
+    const responsibilityRows = [
+      new TableRow({
+        children: [
+          buildHeaderCell('Entity'),
+          buildHeaderCell('Responsibility %'),
+          buildHeaderCell('Description')
+        ]
+      }),
+      ...entities.map(entity => new TableRow({
+        children: [
+          buildCell(entity.name),
+          buildCell(`${entity.percentage.toFixed(1)}%`),
+          buildCell(entity.description)
+        ]
+      }))
+    ];
+
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_3,
@@ -160,20 +194,7 @@ function buildCentralBankDocument(data: ReportData, kpiReport?: KPIIntelligenceR
       }),
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: [
-          new TableRow({
-            children: [
-              buildHeaderCell('Entity'),
-              buildHeaderCell('Response Descriptions')
-            ]
-          }),
-          ...(kpiReport.professional_report?.responsibility_distribution_analysis?.entities || []).map(entity => new TableRow({
-            children: [
-              buildCell(entity.name),
-              buildCell((entity.examples || []).map(ex => (ex as any).description || ex).join('; '))
-            ]
-          }))
-        ]
+        rows: responseRows
       }),
       new Paragraph({ text: '', spacing: { after: 200 } }),
       new Paragraph({
@@ -182,22 +203,7 @@ function buildCentralBankDocument(data: ReportData, kpiReport?: KPIIntelligenceR
       }),
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: [
-          new TableRow({
-            children: [
-              buildHeaderCell('Entity'),
-              buildHeaderCell('Responsibility %'),
-              buildHeaderCell('Description')
-            ]
-          }),
-          ...(kpiReport.professional_report?.responsibility_distribution_analysis?.entities || []).map(entity => new TableRow({
-            children: [
-              buildCell(entity.name),
-              buildCell(`${entity.percentage.toFixed(1)}%`),
-              buildCell(entity.description)
-            ]
-          }))
-        ]
+        rows: responsibilityRows
       }),
       new Paragraph({ text: '', spacing: { after: 200 } })
     );
