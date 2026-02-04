@@ -90,7 +90,34 @@ const App: React.FC = () => {
     if (!transactions.length) return;
     try {
       setError(null);
-      const { reportData, kpiReport } = buildCentralBankReportData(reportType, transactions);
+      let exportTransactions = transactions;
+
+      if (period === 'WEEKLY') {
+        const startInput = window.prompt('Enter start date (YYYY-MM-DD) for weekly central bank report:');
+        const endInput = window.prompt('Enter end date (YYYY-MM-DD) for weekly central bank report:');
+
+        if (!startInput || !endInput) {
+          throw new Error('Weekly export requires a start and end date.');
+        }
+
+        const startDate = new Date(startInput);
+        const endDate = new Date(endInput);
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          throw new Error('Invalid date format. Use YYYY-MM-DD.');
+        }
+
+        exportTransactions = transactions.filter((tx) => {
+          const txDate = new Date(tx.transaction_datetime);
+          return txDate >= startDate && txDate <= endDate;
+        });
+
+        if (exportTransactions.length === 0) {
+          throw new Error('No transactions found in the selected weekly date range.');
+        }
+      }
+
+      const { reportData, kpiReport } = buildCentralBankReportData(reportType, exportTransactions);
       const blob = await generateCentralBankDocxBlob(reportData, kpiReport);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
