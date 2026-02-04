@@ -36,6 +36,7 @@ const App: React.FC = () => {
   const [period, setPeriod] = useState<PeriodType>('MONTHLY');
 
   const performanceChartRef = useRef<HTMLDivElement | null>(null);
+  const trendChartRef = useRef<HTMLDivElement | null>(null);
   const businessChartRef = useRef<HTMLDivElement | null>(null);
   const userChartRef = useRef<HTMLDivElement | null>(null);
   const technicalChartRef = useRef<HTMLDivElement | null>(null);
@@ -548,14 +549,25 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Decline Distribution</p>
-                    <h3 className="text-lg font-bold text-slate-900">Business Decline Profile</h3>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Performance Trend</p>
+                    <h3 className="text-lg font-bold text-slate-900">Success vs Failure</h3>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => copyChartImage(businessChartRef.current)} className="text-xs font-bold uppercase tracking-wider px-3 py-2 border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">
+                    <button onClick={() => copyChartImage(trendChartRef.current)} className="text-xs font-bold uppercase tracking-wider px-3 py-2 border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">
+                      Copy Chart
+                    </button>
+                    <button onClick={() => downloadChartImage(trendChartRef.current, `${reportType}-success-failure-trend.png`)} className="text-xs font-bold uppercase tracking-wider px-3 py-2 border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">
+                      Download Chart
+                    </button>
+                  </div>
+                </div>
+                <div ref={trendChartRef} className="h-72 bg-slate-50 rounded-xl p-3">
                   {buckets.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={successFailureTrendData}>
@@ -570,9 +582,41 @@ const App: React.FC = () => {
                   ) : (
                     <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
                   )}
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Decline Distribution</p>
+                    <h3 className="text-lg font-bold text-slate-900">Business Decline Profile</h3>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => copyChartImage(businessChartRef.current)} className="text-xs font-bold uppercase tracking-wider px-3 py-2 border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">
+                      Copy Chart
+                    </button>
+                    <button onClick={() => downloadChartImage(businessChartRef.current, `${reportType}-business-decline.png`)} className="text-xs font-bold uppercase tracking-wider px-3 py-2 border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">
+                      Download Chart
+                    </button>
+                  </div>
+                </div>
+                <div ref={businessChartRef} className="h-72 bg-slate-50 rounded-xl p-3">
+                  {businessDeclineData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={businessDeclineData} layout="vertical" margin={{ left: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" />
                         <YAxis type="category" dataKey="name" width={160} />
                         <Tooltip />
                         <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 4, 4]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                  )}
+                </div>
+              </div>
+            </div>
 
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
@@ -603,14 +647,6 @@ const App: React.FC = () => {
                 ) : (
                   <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
                 )}
-              </div>
-            </div>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
-                  )}
-                </div>
               </div>
             </div>
 
