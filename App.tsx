@@ -27,6 +27,8 @@ const App: React.FC = () => {
   const [comparisons, setComparisons] = useState<ComparisonResult[]>([]);
   const [executiveSummary, setExecutiveSummary] = useState('');
   const [dateRange, setDateRange] = useState('');
+  const [weeklyStart, setWeeklyStart] = useState('');
+  const [weeklyEnd, setWeeklyEnd] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [reportType, setReportType] = useState<ReportType>('POS');
   const [period, setPeriod] = useState<PeriodType>('MONTHLY');
@@ -58,6 +60,19 @@ const App: React.FC = () => {
     setExecutiveSummary(updatedSummary);
     setDateRange(range);
   }, [period, reportType, transactions]);
+
+  const weeklyBounds = useMemo(() => {
+    const dates = transactions
+      .map((tx) => new Date(tx.transaction_datetime))
+      .filter((d) => !isNaN(d.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime());
+    const min = dates[0];
+    const max = dates[dates.length - 1];
+    return {
+      min: min ? min.toISOString().slice(0, 10) : '',
+      max: max ? max.toISOString().slice(0, 10) : ''
+    };
+  }, [transactions]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -93,24 +108,12 @@ const App: React.FC = () => {
       let exportTransactions = transactions;
 
       if (period === 'WEEKLY') {
-        const dates = transactions
-          .map((tx) => new Date(tx.transaction_datetime))
-          .filter((d) => !isNaN(d.getTime()))
-          .sort((a, b) => a.getTime() - b.getTime());
-        const minDate = dates[0];
-        const maxDate = dates[dates.length - 1];
-        const minLabel = minDate ? minDate.toISOString().slice(0, 10) : 'YYYY-MM-DD';
-        const maxLabel = maxDate ? maxDate.toISOString().slice(0, 10) : 'YYYY-MM-DD';
-
-        const startInput = window.prompt(`Enter start date (YYYY-MM-DD). Available range: ${minLabel} to ${maxLabel}`);
-        const endInput = window.prompt(`Enter end date (YYYY-MM-DD). Available range: ${minLabel} to ${maxLabel}`);
-
-        if (!startInput || !endInput) {
+        if (!weeklyStart || !weeklyEnd) {
           throw new Error('Weekly export requires a start and end date.');
         }
 
-        const startDate = new Date(`${startInput}T00:00:00`);
-        const endDate = new Date(`${endInput}T23:59:59.999`);
+        const startDate = new Date(`${weeklyStart}T00:00:00`);
+        const endDate = new Date(`${weeklyEnd}T23:59:59.999`);
 
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
           throw new Error('Invalid date format. Use YYYY-MM-DD.');
@@ -127,7 +130,7 @@ const App: React.FC = () => {
         });
 
         if (exportTransactions.length === 0) {
-          throw new Error(`No transactions found in the selected weekly date range (${startInput} to ${endInput}).`);
+          throw new Error(`No transactions found in the selected weekly date range (${weeklyStart} to ${weeklyEnd}).`);
         }
       }
 
@@ -338,6 +341,29 @@ const App: React.FC = () => {
                 </button>
               ))}
             </div>
+
+            {period === 'WEEKLY' && (
+              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
+                <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Weekly Range</div>
+                <input
+                  type="date"
+                  value={weeklyStart}
+                  min={weeklyBounds.min || undefined}
+                  max={weeklyBounds.max || undefined}
+                  onChange={(e) => setWeeklyStart(e.target.value)}
+                  className="text-xs border border-slate-200 rounded px-2 py-1"
+                />
+                <span className="text-xs text-slate-400">to</span>
+                <input
+                  type="date"
+                  value={weeklyEnd}
+                  min={weeklyBounds.min || undefined}
+                  max={weeklyBounds.max || undefined}
+                  onChange={(e) => setWeeklyEnd(e.target.value)}
+                  className="text-xs border border-slate-200 rounded px-2 py-1"
+                />
+              </div>
+            )}
 
             <label htmlFor="file-upload" className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer hover:border-slate-400 shadow-sm">
               Import Ledger
