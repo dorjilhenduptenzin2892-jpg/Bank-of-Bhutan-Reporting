@@ -17,7 +17,7 @@ import { buildCentralBankReportData } from './lib/centralBankData';
 const UI_VIEW = true;
 const REPORT_VIEW = true;
 const USE_SERVER_EXPORT = false;
-const USE_SERVER_EXPORT_CENTRAL = false;
+const UI_BUILD = '2026-02-04.3';
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -90,31 +90,6 @@ const App: React.FC = () => {
     if (!transactions.length) return;
     try {
       setError(null);
-      if (USE_SERVER_EXPORT_CENTRAL) {
-        const response = await fetch('/api/export-central', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            channel: reportType,
-            transactions
-          })
-        });
-
-        if (!response.ok) {
-          const message = await response.text();
-          throw new Error(message || 'Central bank export failed');
-        }
-
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${reportType}_Central_Bank_Report.docx`;
-        link.click();
-        URL.revokeObjectURL(url);
-        return;
-      }
-
       const { reportData, kpiReport } = buildCentralBankReportData(reportType, transactions);
       const blob = await generateCentralBankDocxBlob(reportData, kpiReport);
       const url = URL.createObjectURL(blob);
@@ -126,7 +101,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error('Central export error:', err);
       const errorMsg = err.message || String(err);
-      setError(`Failed to generate Central Bank document: ${errorMsg}`);
+      setError(`Failed to generate Central Bank document (client export): ${errorMsg}`);
     }
   };
 
@@ -715,6 +690,7 @@ const App: React.FC = () => {
       {/* Footer */}
       <footer className="bg-gradient-to-r from-slate-900 to-blue-900 border-t-2 border-blue-700 py-8 px-8 text-slate-300 text-xs font-semibold text-center">
         <p>© 2026 Bank of Bhutan | Acquiring Intelligence Platform | All rights reserved</p>
+        <p className="mt-2 text-slate-400">Build: {UI_BUILD}</p>
       </footer>
     </div>
   );
