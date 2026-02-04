@@ -9,7 +9,15 @@ export const TECHNICAL_CODES = new Set(Object.keys(TECHNICAL_CODE_DICTIONARY));
 
 function normalizeCode(code: string | number | null | undefined): string {
   if (code === null || code === undefined) return '';
-  return String(code).trim().toUpperCase();
+  let normalized = String(code).trim().toUpperCase();
+  if (/^\d+$/.test(normalized)) {
+    if (normalized.length === 1) {
+      normalized = normalized.padStart(2, '0');
+    } else if (normalized.length > 2) {
+      normalized = normalized.replace(/^0+(?=\d{2}$)/, '');
+    }
+  }
+  return normalized;
 }
 
 export function classifyResponse(channel: ReportType, responseCode: string): DeclineCategory {
