@@ -14,6 +14,7 @@ import { generateReportDocxBlob } from './lib/docx';
 
 const UI_VIEW = true;
 const REPORT_VIEW = true;
+const USE_SERVER_EXPORT = false;
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -86,7 +87,7 @@ const App: React.FC = () => {
     if (!transactions.length) return;
     try {
       setError(null);
-      try {
+      if (USE_SERVER_EXPORT) {
         const response = await fetch('/api/generate-report', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -110,8 +111,6 @@ const App: React.FC = () => {
         link.click();
         URL.revokeObjectURL(url);
         return;
-      } catch (apiError) {
-        console.warn('API export failed, falling back to browser DOCX generation.', apiError);
       }
 
       if (!buckets.length) {
