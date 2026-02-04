@@ -11,6 +11,7 @@ import { generateExecutiveSummary } from './lib/summarizer';
 import { getDateRange } from './lib/bucketing';
 import { ResponsiveContainer, Cell, PieChart, Pie, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
 import { generateManagementDocxBlob } from './lib/managementDocx';
+import { buildManagementNarrative } from './lib/managementNarrative';
 import { generateCentralBankDocxBlob } from './lib/centralBankDocx';
 import { buildCentralBankReportData } from './lib/centralBankData';
 
@@ -183,13 +184,21 @@ const App: React.FC = () => {
         throw new Error('No bucketed data available for report export.');
       }
 
+      const narrative = buildManagementNarrative({
+        channel: reportType,
+        period,
+        transactions,
+        buckets
+      });
+
       const blob = await generateManagementDocxBlob({
         channel: reportType,
         period,
         dateRange: dateRange || 'N/A',
         buckets,
         comparisons,
-        executiveSummary
+        executiveSummary,
+        narrative
       });
 
       const url = URL.createObjectURL(blob);

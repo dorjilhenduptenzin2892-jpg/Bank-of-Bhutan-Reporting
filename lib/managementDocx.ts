@@ -200,9 +200,23 @@ export async function generateManagementDocxBuffer(params: {
   buckets: BucketKPI[];
   comparisons: ComparisonResult[];
   executiveSummary: string;
-  narrative: ManagementNarrative;
+  narrative?: ManagementNarrative;
 }): Promise<Buffer> {
-  const doc = buildManagementDocument(params);
+  const narrative = params.narrative || {
+    executiveOverview: params.executiveSummary,
+    transactionPerformance: params.executiveSummary,
+    declineCategoryDistribution: params.executiveSummary,
+    dominantDrivers: params.executiveSummary,
+    declineTrends: params.executiveSummary,
+    schemeAnalysis: params.executiveSummary,
+    channelInsights: params.executiveSummary,
+    trendIntelligence: [],
+    strategicObservations: params.executiveSummary,
+    priorityFocusAreas: [],
+    continuousImprovementAreas: [],
+    formalSummary: params.executiveSummary
+  };
+  const doc = buildManagementDocument({ ...params, narrative });
   return Packer.toBuffer(doc);
 }
 
@@ -213,8 +227,22 @@ export async function generateManagementDocxBlob(params: {
   buckets: BucketKPI[];
   comparisons: ComparisonResult[];
   executiveSummary: string;
-  narrative: ManagementNarrative;
+  narrative?: ManagementNarrative;
 }): Promise<Blob> {
-  const doc = buildManagementDocument(params);
+  const narrative = params.narrative || {
+    executiveOverview: params.executiveSummary,
+    transactionPerformance: params.executiveSummary,
+    declineCategoryDistribution: params.executiveSummary,
+    dominantDrivers: params.executiveSummary,
+    declineTrends: params.executiveSummary,
+    schemeAnalysis: params.executiveSummary,
+    channelInsights: params.executiveSummary,
+    trendIntelligence: [],
+    strategicObservations: params.executiveSummary,
+    priorityFocusAreas: [],
+    continuousImprovementAreas: [],
+    formalSummary: params.executiveSummary
+  };
+  const doc = buildManagementDocument({ ...params, narrative });
   return Packer.toBlob(doc);
 }
