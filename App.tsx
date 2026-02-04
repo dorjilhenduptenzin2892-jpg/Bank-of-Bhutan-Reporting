@@ -8,8 +8,8 @@ import type { ComparisonResult } from './lib/comparison';
 import { computeKpiByBucket } from './lib/kpi';
 import { generateComparisons } from './lib/comparison';
 import { generateExecutiveSummary } from './lib/summarizer';
-import { getDateRange } from './lib/bucketing';
-import { ResponsiveContainer, Cell, PieChart, Pie, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, LabelList } from 'recharts';
+import { bucketTransactions, getDateRange } from './lib/bucketing';
+import { ResponsiveContainer, Cell, PieChart, Pie, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, LabelList, Legend } from 'recharts';
 import { generateManagementDocxBlob } from './lib/managementDocx';
 import { buildManagementNarrative } from './lib/managementNarrative';
 import { generateCentralBankDocxBlob } from './lib/centralBankDocx';
@@ -338,6 +338,35 @@ const App: React.FC = () => {
     }))
   ), [buckets]);
 
+  const schemeData = useMemo(() => {
+    if (!currentBucket) return [] as { name: string; value: number }[];
+    const bucketed = bucketTransactions(transactions, period);
+    const bucketTransactionsList = bucketed[currentBucket.period] || [];
+
+    const normalizeScheme = (value?: string) => {
+      const raw = (value || '').trim().toUpperCase();
+      if (!raw) return 'Other';
+      if (raw.includes('VISA')) return 'VISA';
+      if (raw.includes('MASTERCARD') || raw.includes('MASTER')) return 'MASTERCARD';
+      if (raw.includes('AMEX') || raw.includes('AMERICAN')) return 'AMEX';
+      if (raw.includes('JCB')) return 'JCB';
+      if (raw.includes('UNIONPAY') || raw.includes('UPI')) return 'UNIONPAY';
+      if (raw.includes('RUPAY')) return 'RUPAY';
+      if (raw.includes('DISCOVER')) return 'DISCOVER';
+      return 'Other';
+    };
+
+    const counts = bucketTransactionsList.reduce<Record<string, number>>((acc, tx) => {
+      const scheme = normalizeScheme(tx.card_network);
+      acc[scheme] = (acc[scheme] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [currentBucket, period, transactions]);
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-slate-100" style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
       {/* Header */}
@@ -621,27 +650,46 @@ const App: React.FC = () => {
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Decline Distribution Trend</p>
-                  <h3 className="text-lg font-bold text-slate-900">Business vs User vs Technical</h3>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Decline Mix Over Time</p>
+                  <h3 className="text-lg font-bold text-slate-900">Share of Failures by Cause</h3>
                 </div>
               </div>
               <div className="h-72 bg-slate-50 rounded-xl p-3">
                 {buckets.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={declineTrendData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="period" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="business" stackId="a" fill="#2563eb">
-                        <LabelList dataKey="business" position="top" formatter={(value: number) => `${value.toFixed(1)}%`} />
-                      </Bar>
-                      <Bar dataKey="user" stackId="a" fill="#f59e0b">
-                        <LabelList dataKey="user" position="top" formatter={(value: number) => `${value.toFixed(1)}%`} />
-                      </Bar>
-                      <Bar dataKey="technical" stackId="a" fill="#7c3aed">
-                        <LabelList dataKey="technical" position="top" formatter={(value: number) => `${value.toFixed(1)}%`} />
-                      </Bar>
+                    <BarChart data={declineTrendData} barSize={28} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                      <CartesianGrid strokeDasharray="4 4" />
+                      <XAxis dataKey="period" tick={{ fontSize: 12 }} />
+                      <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                      <Tooltip formatter={(value: number) => `${value.toFixed(2)}%`} />
+                      <Legend verticalAlign="top" height={28} />
+                      <Bar dataKey="business" stackId="a" fill="#2563eb" name="Business" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="user" stackId="a" fill="#f59e0b" name="User" />
+                      <Bar dataKey="technical" stackId="a" fill="#7c3aed" name="Technical" radius={[0, 0, 4, 4]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Scheme Distribution</p>
+                  <h3 className="text-lg font-bold text-slate-900">Card Brand Mix</h3>
+                </div>
+              </div>
+              <div className="h-72 bg-slate-50 rounded-xl p-3">
+                {schemeData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={schemeData} layout="vertical" margin={{ left: 40, right: 20, top: 10, bottom: 10 }}>
+                      <CartesianGrid strokeDasharray="4 4" />
+                      <XAxis type="number" tick={{ fontSize: 12 }} />
+                      <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={(value: number) => value.toLocaleString()} />
+                      <Bar dataKey="value" fill="#0ea5e9" radius={[4, 4, 4, 4]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
