@@ -93,27 +93,41 @@ const App: React.FC = () => {
       let exportTransactions = transactions;
 
       if (period === 'WEEKLY') {
-        const startInput = window.prompt('Enter start date (YYYY-MM-DD) for weekly central bank report:');
-        const endInput = window.prompt('Enter end date (YYYY-MM-DD) for weekly central bank report:');
+        const dates = transactions
+          .map((tx) => new Date(tx.transaction_datetime))
+          .filter((d) => !isNaN(d.getTime()))
+          .sort((a, b) => a.getTime() - b.getTime());
+        const minDate = dates[0];
+        const maxDate = dates[dates.length - 1];
+        const minLabel = minDate ? minDate.toISOString().slice(0, 10) : 'YYYY-MM-DD';
+        const maxLabel = maxDate ? maxDate.toISOString().slice(0, 10) : 'YYYY-MM-DD';
+
+        const startInput = window.prompt(`Enter start date (YYYY-MM-DD). Available range: ${minLabel} to ${maxLabel}`);
+        const endInput = window.prompt(`Enter end date (YYYY-MM-DD). Available range: ${minLabel} to ${maxLabel}`);
 
         if (!startInput || !endInput) {
           throw new Error('Weekly export requires a start and end date.');
         }
 
-        const startDate = new Date(startInput);
-        const endDate = new Date(endInput);
+        const startDate = new Date(`${startInput}T00:00:00`);
+        const endDate = new Date(`${endInput}T23:59:59.999`);
 
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
           throw new Error('Invalid date format. Use YYYY-MM-DD.');
         }
 
+        if (endDate < startDate) {
+          throw new Error('End date must be on or after start date.');
+        }
+
         exportTransactions = transactions.filter((tx) => {
           const txDate = new Date(tx.transaction_datetime);
+          if (isNaN(txDate.getTime())) return false;
           return txDate >= startDate && txDate <= endDate;
         });
 
         if (exportTransactions.length === 0) {
-          throw new Error('No transactions found in the selected weekly date range.');
+          throw new Error(`No transactions found in the selected weekly date range (${startInput} to ${endInput}).`);
         }
       }
 
