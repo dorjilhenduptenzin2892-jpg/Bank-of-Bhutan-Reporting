@@ -17,6 +17,7 @@ import { buildCentralBankReportData } from './lib/centralBankData';
 const UI_VIEW = true;
 const REPORT_VIEW = true;
 const USE_SERVER_EXPORT = false;
+const USE_SERVER_EXPORT_CENTRAL = false;
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -89,7 +90,7 @@ const App: React.FC = () => {
     if (!transactions.length) return;
     try {
       setError(null);
-      try {
+      if (USE_SERVER_EXPORT_CENTRAL) {
         const response = await fetch('/api/export-central', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -112,8 +113,6 @@ const App: React.FC = () => {
         link.click();
         URL.revokeObjectURL(url);
         return;
-      } catch (apiError) {
-        console.warn('Central export API failed, falling back to browser DOCX generation.', apiError);
       }
 
       const { reportData, kpiReport } = buildCentralBankReportData(reportType, transactions);
