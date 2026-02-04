@@ -1,11 +1,15 @@
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { processExcel } from './services/excelProcessor';
-import { generateDocx } from './services/docGenerator';
-import { generateNarrative } from './services/geminiService';
-import { ReportData, ReportType } from './types';
-import { KPIIntelligenceReport } from './services/kpiIntelligence';
-import { ResponsiveContainer, Cell, PieChart, Pie, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { ReportType } from './types';
+import type { PeriodType, RawTransaction } from './lib/bucketing';
+import type { BucketKPI } from './lib/kpi';
+import type { ComparisonResult } from './lib/comparison';
+import { computeKpiByBucket } from './lib/kpi';
+import { generateComparisons } from './lib/comparison';
+import { generateExecutiveSummary } from './lib/summarizer';
+import { getDateRange } from './lib/bucketing';
+import { ResponsiveContainer, Cell, PieChart, Pie, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
 
 const UI_VIEW = true;
 const REPORT_VIEW = true;
@@ -13,22 +17,42 @@ const REPORT_VIEW = true;
 const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
-  const [reportData, setReportData] = useState<ReportData | null>(null);
-  const [kpiReport, setKpiReport] = useState<KPIIntelligenceReport | null>(null);
+  const [transactions, setTransactions] = useState<RawTransaction[]>([]);
+  const [buckets, setBuckets] = useState<BucketKPI[]>([]);
+  const [comparisons, setComparisons] = useState<ComparisonResult[]>([]);
+  const [executiveSummary, setExecutiveSummary] = useState('');
+  const [dateRange, setDateRange] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [reportType, setReportType] = useState<ReportType>('POS');
-  const [period, setPeriod] = useState<'Monthly' | 'Weekly' | 'Yearly'>('Monthly');
+  const [period, setPeriod] = useState<PeriodType>('MONTHLY');
 
   const performanceChartRef = useRef<HTMLDivElement | null>(null);
   const businessChartRef = useRef<HTMLDivElement | null>(null);
+  const userChartRef = useRef<HTMLDivElement | null>(null);
   const technicalChartRef = useRef<HTMLDivElement | null>(null);
 
   const handleTypeChange = (type: ReportType) => {
     setReportType(type);
-    setReportData(null);
-    setKpiReport(null);
+    setTransactions([]);
+    setBuckets([]);
+    setComparisons([]);
+    setExecutiveSummary('');
+    setDateRange('');
     setError(null);
   };
+
+  useEffect(() => {
+    if (transactions.length === 0) return;
+    const updatedBuckets = computeKpiByBucket(transactions, reportType, period);
+    const updatedComparisons = generateComparisons(updatedBuckets);
+    const updatedSummary = generateExecutiveSummary(reportType, period, updatedBuckets, updatedComparisons);
+    const { start, end } = getDateRange(transactions);
+    const range = start && end ? `${start.toLocaleDateString()} – ${end.toLocaleDateString()}` : 'N/A';
+    setBuckets(updatedBuckets);
+    setComparisons(updatedComparisons);
+    setExecutiveSummary(updatedSummary);
+    setDateRange(range);
+  }, [period, reportType, transactions]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -41,16 +65,12 @@ const App: React.FC = () => {
     
     try {
       setLoadingStep('Parsing Excel data...');
-      const result = await processExcel(file, reportType);
-      
-      let finalData = result.reportData;
-      if (REPORT_VIEW) {
-        setLoadingStep('Generating AI-powered narrative analysis...');
-        const narrative = await generateNarrative(result.reportData);
-        finalData = { ...result.reportData, narrative };
-      }
-      setReportData(finalData);
-      setKpiReport(result.kpiIntelligence);
+      const result = await processExcel(file, reportType, period);
+      setTransactions(result.transactions);
+      setBuckets(result.buckets);
+      setComparisons(result.comparisons);
+      setExecutiveSummary(result.executiveSummary);
+      setDateRange(result.dateRange);
     } catch (err: any) {
       setError(err.message || 'Failed to process file. Please check the Excel format.');
       console.error(err);
@@ -64,19 +84,31 @@ const App: React.FC = () => {
   };
 
   const handleDownload = async () => {
-    if (!reportData) return;
+    if (!transactions.length) return;
     try {
-      console.log('Starting document generation...');
-      console.log('Report data:', reportData);
-      console.log('KPI report:', kpiReport);
-      
       setError(null);
-      
-      console.log('Calling generateDocx...');
-      const result = await generateDocx(reportData, kpiReport || undefined);
-      console.log('Document generated successfully, result:', result);
-      
-      setError(null);
+      const response = await fetch('/api/generate-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: reportType,
+          period,
+          transactions
+        })
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'Report generation failed');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${reportType}_${period}_Report.docx`;
+      link.click();
+      URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error('Download error details:', err);
       console.error('Error stack:', err.stack);
@@ -150,33 +182,35 @@ const App: React.FC = () => {
     img.src = url;
   };
 
-  const pieData = reportData ? [
-    { name: 'Success', value: reportData.successRate, color: '#16a34a' },
-    { name: 'Failure', value: reportData.failureRate, color: '#f59e0b' }
-  ] : [];
+  const currentBucket = useMemo(() => buckets[buckets.length - 1], [buckets]);
 
-  const totalDeclines = useMemo(() => {
-    if (!reportData) return 0;
-    const businessTotal = (reportData.businessFailures || []).reduce((s, f) => s + (f.volume || 0), 0);
-    const technicalTotal = (reportData.technicalFailures || []).reduce((s, f) => s + (f.volume || 0), 0);
-    return businessTotal + technicalTotal;
-  }, [reportData]);
+  const outcomeData = useMemo(() => {
+    if (!currentBucket) return [];
+    return [
+      { name: 'Success', value: currentBucket.success_rate, color: '#16a34a' },
+      { name: 'Business', value: currentBucket.business_rate, color: '#2563eb' },
+      { name: 'User', value: currentBucket.user_rate, color: '#f59e0b' },
+      { name: 'Technical', value: currentBucket.technical_rate, color: '#7c3aed' }
+    ];
+  }, [currentBucket]);
 
-  const businessDeclineData = useMemo(() => {
-    if (!reportData) return [];
-    return (reportData.businessFailures || [])
-      .filter(f => (f.volume ?? 0) > 0)
-      .slice(0, 10)
-      .map(f => ({ name: f.description, value: f.volume }));
-  }, [reportData]);
+  const totalDeclines = currentBucket
+    ? currentBucket.business_failures + currentBucket.user_failures + currentBucket.technical_failures
+    : 0;
 
-  const technicalDeclineData = useMemo(() => {
-    if (!reportData) return [];
-    return (reportData.technicalFailures || [])
-      .filter(f => (f.volume ?? 0) > 0)
-      .slice(0, 10)
-      .map(f => ({ name: f.description, value: f.volume }));
-  }, [reportData]);
+  const businessDeclineData = currentBucket
+    ? currentBucket.business_declines.map((d) => ({ name: d.description, value: d.count }))
+    : [];
+  const userDeclineData = currentBucket
+    ? currentBucket.user_declines.map((d) => ({ name: d.description, value: d.count }))
+    : [];
+  const technicalDeclineData = currentBucket
+    ? currentBucket.technical_declines.map((d) => ({ name: d.description, value: d.count }))
+    : [];
+
+  const comparativeChartData = useMemo(() => (
+    buckets.map((b) => ({ period: b.period, success: b.success_rate }))
+  ), [buckets]);
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-slate-100" style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
@@ -208,7 +242,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
-              {(['Monthly', 'Weekly', 'Yearly'] as const).map((p) => (
+              {(['MONTHLY', 'WEEKLY', 'YEARLY'] as const).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPeriod(p)}
@@ -277,36 +311,43 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Success Rate</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Success %</p>
                   <div className="h-9 w-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">▲</div>
                 </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{reportData ? `${reportData.successRate.toFixed(2)}%` : '—'}</p>
+                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.success_rate.toFixed(2)}%` : '—'}</p>
                 <p className="text-xs text-slate-400 mt-1">Authorization success</p>
               </div>
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Failure Rate</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Business Failure %</p>
+                  <div className="h-9 w-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">■</div>
+                </div>
+                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.business_rate.toFixed(2)}%` : '—'}</p>
+                <p className="text-xs text-slate-400 mt-1">Issuer policy declines</p>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">User Failure %</p>
                   <div className="h-9 w-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">●</div>
                 </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{reportData ? `${reportData.failureRate.toFixed(2)}%` : '—'}</p>
-                <p className="text-xs text-slate-400 mt-1">Authorization declines</p>
+                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.user_rate.toFixed(2)}%` : '—'}</p>
+                <p className="text-xs text-slate-400 mt-1">Cardholder declines</p>
               </div>
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Transactions</p>
-                  <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">■</div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Technical Failure %</p>
+                  <div className="h-9 w-9 rounded-full bg-violet-50 flex items-center justify-center text-violet-600">◆</div>
                 </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{reportData ? reportData.totalTransactions.toLocaleString() : '—'}</p>
-                <p className="text-xs text-slate-400 mt-1">Processed volume</p>
+                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.technical_rate.toFixed(2)}%` : '—'}</p>
+                <p className="text-xs text-slate-400 mt-1">Infrastructure declines</p>
               </div>
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Declines</p>
-                  <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">◆</div>
-                </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{reportData ? totalDeclines.toLocaleString() : '—'}</p>
-                <p className="text-xs text-slate-400 mt-1">Decline volume</p>
-              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Volume Summary</div>
+              <div className="text-sm text-slate-700 font-semibold">Total Transactions: <span className="text-slate-900">{currentBucket ? currentBucket.total.toLocaleString() : '—'}</span></div>
+              <div className="text-sm text-slate-700 font-semibold">Total Declines: <span className="text-slate-900">{currentBucket ? totalDeclines.toLocaleString() : '—'}</span></div>
+              <div className="text-sm text-slate-700 font-semibold">Date Range: <span className="text-slate-900">{dateRange || '—'}</span></div>
             </div>
 
             {/* Graphs */}
@@ -327,11 +368,11 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div ref={performanceChartRef} className="h-72 bg-slate-50 rounded-xl p-3">
-                  {reportData ? (
+                  {currentBucket ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} innerRadius={70} paddingAngle={4} stroke="none">
-                          {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                        <Pie data={outcomeData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} innerRadius={70} paddingAngle={4} stroke="none">
+                          {outcomeData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                         </Pie>
                         <Tooltip />
                       </PieChart>
@@ -365,7 +406,7 @@ const App: React.FC = () => {
                         <XAxis type="number" />
                         <YAxis type="category" dataKey="name" width={160} />
                         <Tooltip />
-                        <Bar dataKey="value" fill="#f59e0b" radius={[4, 4, 4, 4]} />
+                        <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 4, 4]} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -376,6 +417,38 @@ const App: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Decline Distribution</p>
+                    <h3 className="text-lg font-bold text-slate-900">User Decline Profile</h3>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => copyChartImage(userChartRef.current)} className="text-xs font-bold uppercase tracking-wider px-3 py-2 border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">
+                      Copy Chart
+                    </button>
+                    <button onClick={() => downloadChartImage(userChartRef.current, `${reportType}-user-decline.png`)} className="text-xs font-bold uppercase tracking-wider px-3 py-2 border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">
+                      Download Chart
+                    </button>
+                  </div>
+                </div>
+                <div ref={userChartRef} className="h-72 bg-slate-50 rounded-xl p-3">
+                  {userDeclineData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={userDeclineData} layout="vertical" margin={{ left: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" />
+                        <YAxis type="category" dataKey="name" width={160} />
+                        <Tooltip />
+                        <Bar dataKey="value" fill="#f59e0b" radius={[4, 4, 4, 4]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                  )}
+                </div>
+              </div>
+
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -399,7 +472,7 @@ const App: React.FC = () => {
                         <XAxis type="number" />
                         <YAxis type="category" dataKey="name" width={160} />
                         <Tooltip />
-                        <Bar dataKey="value" fill="#16a34a" radius={[4, 4, 4, 4]} />
+                        <Bar dataKey="value" fill="#7c3aed" radius={[4, 4, 4, 4]} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -407,6 +480,65 @@ const App: React.FC = () => {
                   )}
                 </div>
               </div>
+            </div>
+
+            {buckets.length > 1 && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Comparative View</p>
+                    <h3 className="text-lg font-bold text-slate-900">Success Rate Trend</h3>
+                  </div>
+                  <div className="text-xs font-semibold text-slate-500">{dateRange || '—'}</div>
+                </div>
+                <div className="h-72 bg-slate-50 rounded-xl p-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={comparativeChartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="period" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="success" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              {[
+                { title: 'Top 10 Business Declines', data: currentBucket?.business_declines || [] },
+                { title: 'Top 10 User Declines', data: currentBucket?.user_declines || [] },
+                { title: 'Top 10 Technical Declines', data: currentBucket?.technical_declines || [] }
+              ].map((block) => (
+                <div key={block.title} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest mb-4">{block.title}</h3>
+                  {block.data.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="text-slate-500">
+                            <th className="py-2">Code</th>
+                            <th className="py-2">Description</th>
+                            <th className="py-2 text-right">Count</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {block.data.slice(0, 10).map((d, i) => (
+                            <tr key={`${d.code}-${i}`}>
+                              <td className="py-2 font-semibold text-slate-700">{d.code}</td>
+                              <td className="py-2 text-slate-600">{d.description}</td>
+                              <td className="py-2 text-right text-slate-700 font-semibold">{d.count.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-slate-500">No data available</div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}

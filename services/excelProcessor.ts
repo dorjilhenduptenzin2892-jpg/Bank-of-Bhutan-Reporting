@@ -1,16 +1,25 @@
 
 import * as XLSX from 'xlsx';
-import { TransactionRecord, ReportData, StandardizedDecline, ReportType } from '../types';
-import { BUSINESS_CODE_DICTIONARY, TECHNICAL_CODE_DICTIONARY, REASON_NORMALIZATION } from '../constants';
-import { generateTypicalCause } from './geminiService';
-import { analyzeKPIIntelligence, KPIIntelligenceReport } from './kpiIntelligence';
+import { TransactionRecord, ReportType } from '../types';
+import type { PeriodType, RawTransaction } from '../lib/bucketing';
+import { getDateRange } from '../lib/bucketing';
+import { computeKpiByBucket, type BucketKPI } from '../lib/kpi';
+import { generateComparisons, type ComparisonResult } from '../lib/comparison';
+import { generateExecutiveSummary } from '../lib/summarizer';
 
 export interface ProcessedReportWithKPI {
-  reportData: ReportData;
-  kpiIntelligence: KPIIntelligenceReport;
+  transactions: RawTransaction[];
+  buckets: BucketKPI[];
+  comparisons: ComparisonResult[];
+  executiveSummary: string;
+  dateRange: string;
 }
 
-export async function processExcel(file: File, reportType: ReportType): Promise<ProcessedReportWithKPI> {
+export async function processExcel(
+  file: File,
+  reportType: ReportType,
+  period: PeriodType
+): Promise<ProcessedReportWithKPI> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -22,121 +31,33 @@ export async function processExcel(file: File, reportType: ReportType): Promise<
 
         if (rawData.length === 0) throw new Error("Excel file is empty");
 
-        // Success vs Failure (00 or 0 is Success)
-        const successes = rawData.filter(tx => String(tx.RESPONSE_CODE) === '00' || String(tx.RESPONSE_CODE) === '0');
-        const failures = rawData.filter(tx => String(tx.RESPONSE_CODE) !== '00' && String(tx.RESPONSE_CODE) !== '0');
-        
-        const successRate = (successes.length / rawData.length) * 100;
-        const failureRate = 100 - successRate;
+        const transactions: RawTransaction[] = rawData.map((tx) => {
+          const rawDate = tx.TRANSACTION_DATE;
+          const parsedDate = typeof rawDate === 'number'
+            ? new Date((rawDate - 25569) * 86400 * 1000)
+            : rawDate;
 
-        // Date Range
-        const dates = rawData.map(tx => {
-            const d = tx.TRANSACTION_DATE;
-            if (typeof d === 'number') {
-                const date = new Date((d - 25569) * 86400 * 1000);
-                return date;
-            }
-            return new Date(d);
-        }).filter(d => !isNaN(d.getTime())).sort((a, b) => a.getTime() - b.getTime());
-        
-        const startDate = dates[0]?.toLocaleDateString() || 'N/A';
-        const endDate = dates[dates.length - 1]?.toLocaleDateString() || 'N/A';
-        const year = dates[0]?.getFullYear().toString() || new Date().getFullYear().toString();
-        const dateRangeText = `${startDate} – ${endDate}`;
-
-        const businessMap: Record<string, { volume: number, code: string, reason: string }> = {};
-        const technicalMap: Record<string, { volume: number, code: string, reason: string }> = {};
-
-        // Pre-populate technicalMap to ensure all 3 always appear
-        Object.entries(TECHNICAL_CODE_DICTIONARY).forEach(([code, entry]) => {
-          technicalMap[code] = { volume: 0, code, reason: entry.normalizedDescription };
+          return {
+            transaction_datetime: parsedDate,
+            channel: reportType,
+            response_code: String(tx.RESPONSE_CODE || '').trim(),
+            response_description: tx.RESPONSE_REASON || tx.RESPONSE_CATEGORY || 'Unknown',
+            amount: tx.VALUE
+          };
         });
 
-        for (const tx of failures) {
-          const code = String(tx.RESPONSE_CODE || '').trim();
-          const isTechnical = !!TECHNICAL_CODE_DICTIONARY[code];
-          
-          const targetMap = isTechnical ? technicalMap : businessMap;
-          const key = isTechnical ? code : (code || (tx.RESPONSE_REASON || '').toLowerCase().trim() || 'Unknown');
-          
-          if (!targetMap[key]) {
-            targetMap[key] = { volume: 0, code, reason: tx.RESPONSE_REASON || '' };
-          }
-          targetMap[key].volume++;
-        }
-
-        const mapToStandardized = async (entries: [string, any][], isTech: boolean): Promise<StandardizedDecline[]> => {
-          return Promise.all(entries.map(async ([key, val]) => {
-            const dict = isTech ? TECHNICAL_CODE_DICTIONARY : BUSINESS_CODE_DICTIONARY;
-            const codeEntry = dict[val.code];
-            
-            if (codeEntry) {
-              return {
-                description: codeEntry.normalizedDescription,
-                volume: val.volume,
-                typicalCause: codeEntry.typicalCause
-              };
-            }
-
-            const phraseKey = val.reason.toLowerCase().trim();
-            const phraseEntry = REASON_NORMALIZATION[phraseKey];
-            if (phraseEntry) {
-               return {
-                description: phraseEntry.normalizedDescription,
-                volume: val.volume,
-                typicalCause: phraseEntry.typicalCause
-              };
-            }
-
-            const cause = await generateTypicalCause(val.reason || `Code ${val.code}`);
-            return {
-              description: val.reason || `Declined (Code ${val.code})`,
-              volume: val.volume,
-              typicalCause: cause
-            };
-          }));
-        };
-
-        let businessFailures = await mapToStandardized(Object.entries(businessMap), false);
-        const technicalFailures = await mapToStandardized(Object.entries(technicalMap), true);
-
-        // Include up to top 10 business declines. Apply minimum-volume preference only when there are more than 10.
-        businessFailures = businessFailures.sort((a, b) => b.volume - a.volume);
-        if (businessFailures.length > 10) {
-          const preferred = businessFailures.filter(f => f.volume >= 50);
-          if (preferred.length >= 10) {
-            businessFailures = preferred.slice(0, 10);
-          } else {
-            const preferredSet = new Set(preferred.map(f => `${f.description}::${f.volume}::${f.typicalCause}`));
-            const remainder = businessFailures.filter(
-              f => !preferredSet.has(`${f.description}::${f.volume}::${f.typicalCause}`)
-            );
-            businessFailures = [...preferred, ...remainder].slice(0, 10);
-          }
-        } else {
-          businessFailures = businessFailures.slice(0, 10);
-        }
-
-        technicalFailures.sort((a, b) => b.volume - a.volume);
-
-        const reportData: ReportData = {
-          reportType,
-          successRate,
-          failureRate,
-          dateRange: dateRangeText,
-          year,
-          businessFailures,
-          technicalFailures,
-          totalTransactions: rawData.length,
-          narrative: '' 
-        };
-
-        // Generate KPI Intelligence
-        const kpiIntelligence = analyzeKPIIntelligence(reportData);
+        const buckets = computeKpiByBucket(transactions, reportType, period);
+        const comparisons = generateComparisons(buckets);
+        const executiveSummary = generateExecutiveSummary(reportType, period, buckets, comparisons);
+        const { start, end } = getDateRange(transactions);
+        const dateRangeText = start && end ? `${start.toLocaleDateString()} – ${end.toLocaleDateString()}` : 'N/A';
 
         resolve({
-          reportData,
-          kpiIntelligence
+          transactions,
+          buckets,
+          comparisons,
+          executiveSummary,
+          dateRange: dateRangeText
         });
 
       } catch (err) {
