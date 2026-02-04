@@ -14,7 +14,7 @@ function normalizeCode(code: string | number | null | undefined): string {
 
 export function classifyResponse(channel: ReportType, responseCode: string): DeclineCategory {
   const code = normalizeCode(responseCode);
-  if (code === '00') return 'success';
+  if (code === '00' || code === '0') return 'success';
   if (channel === 'IPG' && IPG_USER_CODES.has(code)) return 'user_decline';
   if ((channel === 'POS' || channel === 'ATM') && POS_ATM_USER_CODES.has(code)) return 'user_decline';
   if (TECHNICAL_CODES.has(code)) return 'technical_decline';

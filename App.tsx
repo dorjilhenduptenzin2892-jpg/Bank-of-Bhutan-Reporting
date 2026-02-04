@@ -540,6 +540,46 @@ const App: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Period Breakdown</p>
+                  <h3 className="text-lg font-bold text-slate-900">Weekly / Monthly / Yearly Buckets</h3>
+                </div>
+                <div className="text-xs font-semibold text-slate-500">{period}</div>
+              </div>
+              {buckets.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="text-slate-500">
+                        <th className="py-2">Period</th>
+                        <th className="py-2 text-right">Total</th>
+                        <th className="py-2 text-right">Success %</th>
+                        <th className="py-2 text-right">Business %</th>
+                        <th className="py-2 text-right">User %</th>
+                        <th className="py-2 text-right">Technical %</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {buckets.map((b) => (
+                        <tr key={b.period}>
+                          <td className="py-2 font-semibold text-slate-700">{b.period}</td>
+                          <td className="py-2 text-right text-slate-700">{b.total.toLocaleString()}</td>
+                          <td className="py-2 text-right text-slate-700">{b.success_rate.toFixed(2)}%</td>
+                          <td className="py-2 text-right text-slate-700">{b.business_rate.toFixed(2)}%</td>
+                          <td className="py-2 text-right text-slate-700">{b.user_rate.toFixed(2)}%</td>
+                          <td className="py-2 text-right text-slate-700">{b.technical_rate.toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-sm text-slate-500">No data available</div>
+              )}
+            </div>
           </div>
         )}
       </main>
