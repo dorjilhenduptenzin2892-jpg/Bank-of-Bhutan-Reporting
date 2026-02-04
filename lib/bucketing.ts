@@ -1,4 +1,4 @@
-export type PeriodType = 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'QUARTERLY' | 'CUSTOM';
+export type PeriodType = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'QUARTERLY' | 'CUSTOM';
 
 export interface RawTransaction {
   transaction_datetime: string | Date;
@@ -45,7 +45,9 @@ export function bucketTransactions(
     }
 
     let key = '';
-    if (period === 'WEEKLY') {
+    if (period === 'DAILY' || period === 'CUSTOM') {
+      key = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    } else if (period === 'WEEKLY') {
       const { week, year } = getISOWeek(date);
       key = `${year}-W${pad2(week)}`;
     } else if (period === 'MONTHLY') {
@@ -65,10 +67,28 @@ export function bucketTransactions(
 }
 
 export function sortPeriodKeys(keys: string[]): string[] {
+  const parse = (value: string) => {
+    const daily = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (daily) return [Number(daily[1]), Number(daily[2]), Number(daily[3])];
+
+    const weekly = value.match(/^(\d{4})-W(\d{2})$/);
+    if (weekly) return [Number(weekly[1]), Number(weekly[2])];
+
+    const quarterly = value.match(/^(\d{4})-Q(\d)$/);
+    if (quarterly) return [Number(quarterly[1]), Number(quarterly[2])];
+
+    const monthly = value.match(/^(\d{4})-(\d{2})$/);
+    if (monthly) return [Number(monthly[1]), Number(monthly[2])];
+
+    const yearly = value.match(/^(\d{4})$/);
+    if (yearly) return [Number(yearly[1])];
+
+    return [0];
+  };
+
   return [...keys].sort((a, b) => {
-    const normalize = (value: string) => value.replace('W', '-');
-    const da = normalize(a).split('-').map(Number);
-    const db = normalize(b).split('-').map(Number);
+    const da = parse(a);
+    const db = parse(b);
     for (let i = 0; i < Math.max(da.length, db.length); i += 1) {
       const diff = (da[i] || 0) - (db[i] || 0);
       if (diff !== 0) return diff;

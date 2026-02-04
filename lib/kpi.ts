@@ -1,5 +1,5 @@
 import type { ReportType } from '../types';
-import type { RawTransaction } from './bucketing';
+import type { PeriodType, RawTransaction } from './bucketing';
 import { classifyResponse, normalizeResponseCode, DeclineCategory } from './classifier';
 import { bucketTransactions, sortPeriodKeys } from './bucketing';
 
@@ -63,7 +63,7 @@ function buildTopDeclines(
 export function computeKpiByBucket(
   transactions: RawTransaction[],
   channel: ReportType,
-  period: 'WEEKLY' | 'MONTHLY' | 'YEARLY',
+  period: PeriodType,
   selectedYear?: number
 ): BucketKPI[] {
   const buckets = bucketTransactions(transactions, period, selectedYear);
