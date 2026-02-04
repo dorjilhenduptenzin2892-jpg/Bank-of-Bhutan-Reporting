@@ -10,7 +10,7 @@ import { generateComparisons } from './lib/comparison';
 import { generateExecutiveSummary } from './lib/summarizer';
 import { getDateRange } from './lib/bucketing';
 import { ResponsiveContainer, Cell, PieChart, Pie, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
-import { generateReportDocxBlob } from './lib/docx';
+import { generateManagementDocxBlob } from './lib/managementDocx';
 
 const UI_VIEW = true;
 const REPORT_VIEW = true;
@@ -83,12 +83,44 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDownload = async () => {
+  const handleCentralExport = async () => {
+    if (!transactions.length) return;
+    try {
+      setError(null);
+      const response = await fetch('/api/export-central', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: reportType,
+          transactions
+        })
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'Central bank export failed');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${reportType}_Central_Bank_Report.docx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Central export error:', err);
+      const errorMsg = err.message || String(err);
+      setError(`Failed to generate Central Bank document: ${errorMsg}`);
+    }
+  };
+
+  const handleManagementExport = async () => {
     if (!transactions.length) return;
     try {
       setError(null);
       if (USE_SERVER_EXPORT) {
-        const response = await fetch('/api/generate-report', {
+        const response = await fetch('/api/export-management', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -117,7 +149,7 @@ const App: React.FC = () => {
         throw new Error('No bucketed data available for report export.');
       }
 
-      const blob = await generateReportDocxBlob({
+      const blob = await generateManagementDocxBlob({
         channel: reportType,
         period,
         dateRange: dateRange || 'N/A',
@@ -137,7 +169,7 @@ const App: React.FC = () => {
       console.error('Error stack:', err.stack);
       const errorMsg = err.message || String(err);
       console.error('Final error message:', errorMsg);
-      setError(`Failed to generate Word document: ${errorMsg}`);
+      setError(`Failed to generate Management document: ${errorMsg}`);
     }
   };
 
@@ -279,8 +311,11 @@ const App: React.FC = () => {
             <label htmlFor="file-upload" className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer hover:border-slate-400 shadow-sm">
               Import Ledger
             </label>
-            <button onClick={handleDownload} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm">
-              Report Export
+            <button onClick={handleCentralExport} className="bg-slate-900 hover:bg-slate-950 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm">
+              Export (Central Bank)
+            </button>
+            <button onClick={handleManagementExport} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm">
+              Management Report
             </button>
           </div>
         </div>
