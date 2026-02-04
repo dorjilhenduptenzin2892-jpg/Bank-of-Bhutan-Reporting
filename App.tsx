@@ -11,6 +11,8 @@ import { generateExecutiveSummary } from './lib/summarizer';
 import { getDateRange } from './lib/bucketing';
 import { ResponsiveContainer, Cell, PieChart, Pie, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
 import { generateManagementDocxBlob } from './lib/managementDocx';
+import { generateCentralBankDocxBlob } from './lib/centralBankDocx';
+import { buildCentralBankReportData } from './lib/centralBankData';
 
 const UI_VIEW = true;
 const REPORT_VIEW = true;
@@ -87,21 +89,35 @@ const App: React.FC = () => {
     if (!transactions.length) return;
     try {
       setError(null);
-      const response = await fetch('/api/export-central', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          channel: reportType,
-          transactions
-        })
-      });
+      try {
+        const response = await fetch('/api/export-central', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            channel: reportType,
+            transactions
+          })
+        });
 
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || 'Central bank export failed');
+        if (!response.ok) {
+          const message = await response.text();
+          throw new Error(message || 'Central bank export failed');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${reportType}_Central_Bank_Report.docx`;
+        link.click();
+        URL.revokeObjectURL(url);
+        return;
+      } catch (apiError) {
+        console.warn('Central export API failed, falling back to browser DOCX generation.', apiError);
       }
 
-      const blob = await response.blob();
+      const { reportData, kpiReport } = buildCentralBankReportData(reportType, transactions);
+      const blob = await generateCentralBankDocxBlob(reportData, kpiReport);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
