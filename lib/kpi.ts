@@ -86,9 +86,10 @@ export function computeKpiByBucket(
     });
 
     const successRate = total ? (success / total) * 100 : 0;
-    const businessRate = total ? (business / total) * 100 : 0;
-    const userRate = total ? (user / total) * 100 : 0;
-    const technicalRate = total ? (technical / total) * 100 : 0;
+    const totalFailures = business + user + technical;
+    const businessRate = totalFailures ? (business / totalFailures) * 100 : 0;
+    const userRate = totalFailures ? (user / totalFailures) * 100 : 0;
+    const technicalRate = totalFailures ? (technical / totalFailures) * 100 : 0;
 
     return {
       period: key,

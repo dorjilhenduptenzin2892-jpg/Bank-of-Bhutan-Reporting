@@ -334,42 +334,43 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Success %</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Success Rate</p>
                   <div className="h-9 w-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">▲</div>
                 </div>
                 <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.success_rate.toFixed(2)}%` : '—'}</p>
-                <p className="text-xs text-slate-400 mt-1">Authorization success</p>
+                <p className="text-xs text-slate-400 mt-1">Total success / total transactions</p>
               </div>
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Business Failure %</p>
-                  <div className="h-9 w-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">■</div>
-                </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.business_rate.toFixed(2)}%` : '—'}</p>
-                <p className="text-xs text-slate-400 mt-1">Issuer policy declines</p>
-              </div>
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">User Failure %</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Failure Rate</p>
                   <div className="h-9 w-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">●</div>
                 </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.user_rate.toFixed(2)}%` : '—'}</p>
-                <p className="text-xs text-slate-400 mt-1">Cardholder declines</p>
+                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${(100 - currentBucket.success_rate).toFixed(2)}%` : '—'}</p>
+                <p className="text-xs text-slate-400 mt-1">Total failures / total transactions</p>
               </div>
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Technical Failure %</p>
-                  <div className="h-9 w-9 rounded-full bg-violet-50 flex items-center justify-center text-violet-600">◆</div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Transactions</p>
+                  <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">■</div>
                 </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.technical_rate.toFixed(2)}%` : '—'}</p>
-                <p className="text-xs text-slate-400 mt-1">Infrastructure declines</p>
+                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? currentBucket.total.toLocaleString() : '—'}</p>
+                <p className="text-xs text-slate-400 mt-1">Processed volume</p>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Failures</p>
+                  <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">◆</div>
+                </div>
+                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? totalDeclines.toLocaleString() : '—'}</p>
+                <p className="text-xs text-slate-400 mt-1">Business + user + technical</p>
               </div>
             </div>
 
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Volume Summary</div>
-              <div className="text-sm text-slate-700 font-semibold">Total Transactions: <span className="text-slate-900">{currentBucket ? currentBucket.total.toLocaleString() : '—'}</span></div>
-              <div className="text-sm text-slate-700 font-semibold">Total Declines: <span className="text-slate-900">{currentBucket ? totalDeclines.toLocaleString() : '—'}</span></div>
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Failure Breakdown (Share of Total Failures)</div>
+              <div className="text-sm text-slate-700 font-semibold">Business: <span className="text-slate-900">{currentBucket ? `${currentBucket.business_rate.toFixed(2)}%` : '—'}</span></div>
+              <div className="text-sm text-slate-700 font-semibold">User: <span className="text-slate-900">{currentBucket ? `${currentBucket.user_rate.toFixed(2)}%` : '—'}</span></div>
+              <div className="text-sm text-slate-700 font-semibold">Technical: <span className="text-slate-900">{currentBucket ? `${currentBucket.technical_rate.toFixed(2)}%` : '—'}</span></div>
               <div className="text-sm text-slate-700 font-semibold">Date Range: <span className="text-slate-900">{dateRange || '—'}</span></div>
             </div>
 
