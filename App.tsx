@@ -60,8 +60,6 @@ const App: React.FC = () => {
 
     setLoading(true);
     setError(null);
-    setReportData(null);
-    setKpiReport(null);
     
     try {
       setLoadingStep('Parsing Excel data...');
@@ -284,7 +282,7 @@ const App: React.FC = () => {
         )}
         {UI_VIEW && (
           <div className="space-y-6">
-            {!reportData && !loading && (
+            {transactions.length === 0 && !loading && (
               <div className="bg-white border border-slate-200 rounded-2xl p-10 shadow-sm">
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center justify-between">
