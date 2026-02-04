@@ -198,7 +198,7 @@ function buildCentralBankDocument(data: ReportData, kpiReport?: KPIIntelligenceR
             ]
           }))
         ]
-      ),
+      }),
       new Paragraph({ text: '', spacing: { after: 200 } })
     );
 
