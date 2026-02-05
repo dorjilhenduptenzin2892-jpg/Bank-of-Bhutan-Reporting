@@ -10,11 +10,15 @@ import { generateComparisons } from './lib/comparison';
 import { generateExecutiveSummary } from './lib/summarizer';
 import { bucketTransactions, getDateRange, sortPeriodKeys } from './lib/bucketing';
 import { classifyResponse, normalizeResponseCode } from './lib/classifier';
-import { ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, LabelList, Legend, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
+import { ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, LabelList, Legend, AreaChart, Area, ScatterChart, Scatter, PieChart, Pie, Cell, Treemap } from 'recharts';
 import { generateManagementDocxBlob } from './lib/managementDocx';
 import { buildManagementNarrative } from './lib/managementNarrative';
 import { generateCentralBankDocxBlob } from './lib/centralBankDocx';
 import { buildCentralBankReportData } from './lib/centralBankData';
+import { getMastercardAnalytics, type ExecutiveChannel, type ExecutiveFilters, type ExecutiveGranularity, type ExecutiveRange } from './services/mastercardAnalytics';
+import { generateMastercardSnapshotDocxBlob } from './lib/mastercardSnapshotDocx';
+import KpiCard from './components/executive/KpiCard';
+import SectionCard from './components/executive/SectionCard';
 
 const UI_VIEW = true;
 const REPORT_VIEW = true;
@@ -36,7 +40,12 @@ const App: React.FC = () => {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [schemeScope, setSchemeScope] = useState<'ALL' | 'VISA' | 'MASTERCARD' | 'UNIONPAY' | 'RUPAY'>('ALL');
-  const [viewMode, setViewMode] = useState<'OPERATIONAL' | 'EXECUTIVE'>('OPERATIONAL');
+  const [viewMode, setViewMode] = useState<'OPERATIONAL' | 'EXECUTIVE'>('EXECUTIVE');
+  const [execRange, setExecRange] = useState<ExecutiveRange>('LAST_3_YEARS');
+  const [execGranularity, setExecGranularity] = useState<ExecutiveGranularity>('MONTHLY');
+  const [execChannel, setExecChannel] = useState<ExecutiveChannel>('POS_ATM');
+  const [execCustomStart, setExecCustomStart] = useState('');
+  const [execCustomEnd, setExecCustomEnd] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const trendChartRef = useRef<HTMLDivElement | null>(null);
@@ -84,8 +93,8 @@ const App: React.FC = () => {
     };
   }, [transactions]);
 
-  const filteredTransactions = useMemo(() => {
-    let filtered = [...transactions];
+  const operationalTransactions = useMemo(() => {
+    let filtered = transactions.filter((tx) => tx.channel === reportType);
 
     if (schemeScope !== 'ALL') {
       filtered = filtered.filter((tx) => normalizeScheme(tx.card_network) === schemeScope);
@@ -104,20 +113,20 @@ const App: React.FC = () => {
     }
 
     return filtered;
-  }, [customEnd, customStart, period, schemeScope, transactions]);
+  }, [customEnd, customStart, period, reportType, schemeScope, transactions]);
 
   useEffect(() => {
-    if (filteredTransactions.length === 0) {
+    if (operationalTransactions.length === 0) {
       setBuckets([]);
       setComparisons([]);
       setExecutiveSummary('');
       setDateRange('');
       return;
     }
-    const updatedBuckets = computeKpiByBucket(filteredTransactions, reportType, aggregationPeriod);
+    const updatedBuckets = computeKpiByBucket(operationalTransactions, reportType, aggregationPeriod);
     const updatedComparisons = generateComparisons(updatedBuckets);
     const updatedSummary = generateExecutiveSummary(reportType, aggregationPeriod, updatedBuckets, updatedComparisons);
-    const { start, end } = getDateRange(filteredTransactions);
+    const { start, end } = getDateRange(operationalTransactions);
     const range = start && end ? `${start.toLocaleDateString()} – ${end.toLocaleDateString()}` : 'N/A';
     setBuckets(updatedBuckets);
     if (updatedBuckets.length > 0) {
@@ -128,7 +137,7 @@ const App: React.FC = () => {
     setComparisons(updatedComparisons);
     setExecutiveSummary(updatedSummary);
     setDateRange(range);
-  }, [aggregationPeriod, filteredTransactions, reportType]);
+  }, [aggregationPeriod, operationalTransactions, reportType]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -158,10 +167,10 @@ const App: React.FC = () => {
   };
 
   const handleCentralExport = async () => {
-    if (!filteredTransactions.length) return;
+    if (!operationalTransactions.length) return;
     try {
       setError(null);
-      const { reportData, kpiReport } = buildCentralBankReportData(reportType, filteredTransactions);
+      const { reportData, kpiReport } = buildCentralBankReportData(reportType, operationalTransactions);
       const blob = await generateCentralBankDocxBlob(reportData, kpiReport);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -177,7 +186,7 @@ const App: React.FC = () => {
   };
 
   const handleManagementExport = async () => {
-    if (!filteredTransactions.length) return;
+    if (!operationalTransactions.length) return;
     try {
       setError(null);
       if (USE_SERVER_EXPORT) {
@@ -187,7 +196,7 @@ const App: React.FC = () => {
           body: JSON.stringify({
             channel: reportType,
             period: aggregationPeriod,
-            transactions: filteredTransactions
+            transactions: operationalTransactions
           })
         });
 
@@ -213,7 +222,7 @@ const App: React.FC = () => {
       const narrative = buildManagementNarrative({
         channel: reportType,
         period: aggregationPeriod,
-        transactions: filteredTransactions,
+        transactions: operationalTransactions,
         buckets
       });
 
@@ -239,6 +248,24 @@ const App: React.FC = () => {
       const errorMsg = err.message || String(err);
       console.error('Final error message:', errorMsg);
       setError(`Failed to generate Management document: ${errorMsg}`);
+    }
+  };
+
+  const handleMastercardSnapshotExport = async () => {
+    if (!transactions.length) return;
+    try {
+      setError(null);
+      const blob = await generateMastercardSnapshotDocxBlob(mastercardAnalytics);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Mastercard_Acquiring_Business_Snapshot_${Date.now()}.docx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Mastercard snapshot export error:', err);
+      const errorMsg = err.message || String(err);
+      setError(`Failed to generate Mastercard snapshot: ${errorMsg}`);
     }
   };
 
@@ -355,7 +382,7 @@ const App: React.FC = () => {
 
   const schemeTrendData = useMemo(() => {
     if (!buckets.length) return [] as Array<Record<string, number | string>>;
-    const bucketed = bucketTransactions(filteredTransactions, aggregationPeriod);
+    const bucketed = bucketTransactions(operationalTransactions, aggregationPeriod);
     const keys = sortPeriodKeys(Object.keys(bucketed));
 
     return keys.map((key) => {
@@ -378,11 +405,11 @@ const App: React.FC = () => {
         OTHER: computeRate('OTHER')
       };
     });
-  }, [aggregationPeriod, buckets.length, filteredTransactions, reportType]);
+  }, [aggregationPeriod, buckets.length, operationalTransactions, reportType]);
 
   const schemeTopDeclines = useMemo(() => {
     const map: Record<string, Record<string, { code: string; description: string; count: number }>> = {};
-    filteredTransactions.forEach((tx) => {
+    operationalTransactions.forEach((tx) => {
       const category = classifyResponse(reportType, tx.response_code);
       if (category === 'success') return;
       const scheme = normalizeScheme(tx.card_network);
@@ -402,11 +429,11 @@ const App: React.FC = () => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5)
     }));
-  }, [filteredTransactions, reportType]);
+  }, [operationalTransactions, reportType]);
 
   const topDeclineCodes = useMemo(() => {
     const counter = new Map<string, number>();
-    filteredTransactions.forEach((tx) => {
+    operationalTransactions.forEach((tx) => {
       const category = classifyResponse(reportType, tx.response_code);
       if (category === 'success') return;
       const code = normalizeResponseCode(tx.response_code);
@@ -416,11 +443,11 @@ const App: React.FC = () => {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([code]) => code);
-  }, [filteredTransactions, reportType]);
+  }, [operationalTransactions, reportType]);
 
   const topDeclineTrendData = useMemo(() => {
     if (!topDeclineCodes.length) return [] as Array<Record<string, string | number>>;
-    const bucketed = bucketTransactions(filteredTransactions, aggregationPeriod);
+    const bucketed = bucketTransactions(operationalTransactions, aggregationPeriod);
     const keys = sortPeriodKeys(Object.keys(bucketed));
     return keys.map((key) => {
       const items = bucketed[key] || [];
@@ -431,11 +458,30 @@ const App: React.FC = () => {
       });
       return row;
     });
-  }, [aggregationPeriod, filteredTransactions, topDeclineCodes]);
+  }, [aggregationPeriod, operationalTransactions, topDeclineCodes]);
 
   const volumeVsSuccessData = useMemo(() => (
     buckets.map((b) => ({ period: b.period, total: b.total, successRate: b.success_rate }))
   ), [buckets]);
+
+  const executiveFilters = useMemo<ExecutiveFilters>(() => ({
+    rangeType: execRange,
+    granularity: execGranularity,
+    channel: execChannel,
+    customStart: execCustomStart,
+    customEnd: execCustomEnd
+  }), [execChannel, execCustomEnd, execCustomStart, execGranularity, execRange]);
+
+  const mastercardAnalytics = useMemo(() => (
+    getMastercardAnalytics(transactions, executiveFilters)
+  ), [executiveFilters, transactions]);
+
+  const formatCurrency = (value: number) => `BTN ${Math.round(value).toLocaleString()}`;
+  const formatPercent = (value: number, digits = 1) => `${value.toFixed(digits)}%`;
+
+  const latestYoY = mastercardAnalytics.yoy.length
+    ? mastercardAnalytics.yoy[mastercardAnalytics.yoy.length - 1]
+    : undefined;
 
   const renderTrendTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
@@ -475,15 +521,15 @@ const App: React.FC = () => {
               <img src="/bob-logo.svg" alt="Bank of Bhutan" className="h-full w-full object-contain" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Acquiring KPI Dashboard</p>
-              <h1 className="text-2xl font-bold text-slate-900">Transaction Performance & Decline Analytics</h1>
-              <p className="text-xs text-slate-500 font-medium mt-1">Tier-1 banking-grade monitoring for {reportType} acquiring</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Mastercard Acquiring Intelligence</p>
+              <h1 className="text-2xl font-bold text-slate-900">Mastercard Acquiring Business Snapshot</h1>
+              <p className="text-xs text-slate-500 font-medium mt-1">Strategic executive intelligence for POS & ATM acquiring performance</p>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-3 items-center">
             <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
-              {(['POS', 'ATM', 'IPG'] as ReportType[]).map((type) => (
+              {(['POS', 'ATM'] as ReportType[]).map((type) => (
                 <button
                   key={type}
                   onClick={() => handleTypeChange(type)}
@@ -494,36 +540,40 @@ const App: React.FC = () => {
               ))}
             </div>
 
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
-              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Time Aggregation</label>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value as PeriodType)}
-                className="text-xs border border-slate-200 rounded px-2 py-1"
-              >
-                <option value="DAILY">Daily</option>
-                <option value="WEEKLY">Weekly</option>
-                <option value="MONTHLY">Monthly</option>
-                <option value="QUARTERLY">Quarterly</option>
-                <option value="YEARLY">Yearly</option>
-                <option value="CUSTOM">Custom Range</option>
-              </select>
-            </div>
+            {viewMode === 'OPERATIONAL' && (
+              <>
+                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Time Aggregation</label>
+                  <select
+                    value={period}
+                    onChange={(e) => setPeriod(e.target.value as PeriodType)}
+                    className="text-xs border border-slate-200 rounded px-2 py-1"
+                  >
+                    <option value="DAILY">Daily</option>
+                    <option value="WEEKLY">Weekly</option>
+                    <option value="MONTHLY">Monthly</option>
+                    <option value="QUARTERLY">Quarterly</option>
+                    <option value="YEARLY">Yearly</option>
+                    <option value="CUSTOM">Custom Range</option>
+                  </select>
+                </div>
 
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
-              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Data Scope</label>
-              <select
-                value={schemeScope}
-                onChange={(e) => setSchemeScope(e.target.value as typeof schemeScope)}
-                className="text-xs border border-slate-200 rounded px-2 py-1"
-              >
-                <option value="ALL">All Schemes</option>
-                <option value="VISA">Visa</option>
-                <option value="MASTERCARD">Mastercard</option>
-                <option value="UNIONPAY">UnionPay</option>
-                <option value="RUPAY">RuPay</option>
-              </select>
-            </div>
+                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Data Scope</label>
+                  <select
+                    value={schemeScope}
+                    onChange={(e) => setSchemeScope(e.target.value as typeof schemeScope)}
+                    className="text-xs border border-slate-200 rounded px-2 py-1"
+                  >
+                    <option value="ALL">All Schemes</option>
+                    <option value="VISA">Visa</option>
+                    <option value="MASTERCARD">Mastercard</option>
+                    <option value="UNIONPAY">UnionPay</option>
+                    <option value="RUPAY">RuPay</option>
+                  </select>
+                </div>
+              </>
+            )}
 
             <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
               {(['OPERATIONAL', 'EXECUTIVE'] as const).map((mode) => (
@@ -537,7 +587,7 @@ const App: React.FC = () => {
               ))}
             </div>
 
-            {period === 'CUSTOM' && (
+            {viewMode === 'OPERATIONAL' && period === 'CUSTOM' && (
               <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
                 <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Custom Range</div>
                 <input
@@ -563,6 +613,9 @@ const App: React.FC = () => {
             <label htmlFor="file-upload" className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer hover:border-slate-400 shadow-sm">
               Import Ledger
             </label>
+            <button onClick={handleMastercardSnapshotExport} className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm">
+              Download Mastercard Snapshot (DOCX)
+            </button>
             <button onClick={handleCentralExport} className="bg-slate-900 hover:bg-slate-950 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm">
               Download Central Bank Report (DOCX)
             </button>
@@ -601,7 +654,7 @@ const App: React.FC = () => {
                     <div>
                       <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Dashboard Status</p>
                       <h2 className="text-2xl font-bold text-slate-900">Awaiting Ledger Upload</h2>
-                      <p className="text-sm text-slate-500 mt-2">Upload a POS, ATM, or IPG ledger to populate KPI metrics and decline charts.</p>
+                      <p className="text-sm text-slate-500 mt-2">Upload a POS or ATM ledger to populate Mastercard executive KPIs and trend analytics.</p>
                     </div>
                     <div className="hidden md:flex items-center gap-3">
                       <div className="px-4 py-2 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold uppercase tracking-widest">System Ready</div>
@@ -617,51 +670,387 @@ const App: React.FC = () => {
                 </div>
               </div>
             )}
-            {/* KPI Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Success Rate</p>
-                  <div className="h-9 w-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">▲</div>
+            {viewMode === 'EXECUTIVE' && (
+              <>
+                <SectionCard title="Global Filters" subtitle="Executive filter system">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Time Range</label>
+                      <select
+                        value={execRange}
+                        onChange={(e) => setExecRange(e.target.value as ExecutiveRange)}
+                        className="text-xs border border-slate-200 rounded px-2 py-2"
+                      >
+                        <option value="LAST_3_YEARS">Last 3 Years (Rolling)</option>
+                        <option value="YTD_2026">YTD 2026</option>
+                        <option value="CUSTOM">Custom Range</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Granularity</label>
+                      <select
+                        value={execGranularity}
+                        onChange={(e) => setExecGranularity(e.target.value as ExecutiveGranularity)}
+                        className="text-xs border border-slate-200 rounded px-2 py-2"
+                      >
+                        <option value="MONTHLY">Monthly</option>
+                        <option value="QUARTERLY">Quarterly</option>
+                        <option value="YEARLY">Yearly</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Channel</label>
+                      <select
+                        value={execChannel}
+                        onChange={(e) => setExecChannel(e.target.value as ExecutiveChannel)}
+                        className="text-xs border border-slate-200 rounded px-2 py-2"
+                      >
+                        <option value="POS_ATM">POS + ATM</option>
+                        <option value="POS">POS Only</option>
+                        <option value="ATM">ATM Only</option>
+                      </select>
+                    </div>
+                    {execRange === 'CUSTOM' && (
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Custom Range</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            value={execCustomStart}
+                            min={dateBounds.min || undefined}
+                            max={dateBounds.max || undefined}
+                            onChange={(e) => setExecCustomStart(e.target.value)}
+                            className="text-xs border border-slate-200 rounded px-2 py-2"
+                          />
+                          <span className="text-xs text-slate-400">to</span>
+                          <input
+                            type="date"
+                            value={execCustomEnd}
+                            min={dateBounds.min || undefined}
+                            max={dateBounds.max || undefined}
+                            onChange={(e) => setExecCustomEnd(e.target.value)}
+                            className="text-xs border border-slate-200 rounded px-2 py-2"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </SectionCard>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
+                  <KpiCard
+                    label="Mastercard Volume"
+                    value={formatCurrency(mastercardAnalytics.mastercard.volume)}
+                    subtitle={mastercardAnalytics.rangeLabel}
+                    trend={mastercardAnalytics.ytd.volumeGrowth >= 0 ? 'up' : 'down'}
+                  />
+                  <KpiCard
+                    label="Mastercard Count"
+                    value={mastercardAnalytics.mastercard.count.toLocaleString()}
+                    subtitle={`Share ${formatPercent(mastercardAnalytics.mastercard.shareCount)}`}
+                    trend={mastercardAnalytics.ytd.countGrowth >= 0 ? 'up' : 'down'}
+                  />
+                  <KpiCard
+                    label="YTD 2026 Performance"
+                    value={formatPercent(mastercardAnalytics.ytd.volumeGrowth)}
+                    subtitle={`Count ${formatPercent(mastercardAnalytics.ytd.countGrowth)}`}
+                    trend={mastercardAnalytics.ytd.volumeGrowth >= 0 ? 'up' : 'down'}
+                  />
+                  <KpiCard
+                    label="YoY Growth"
+                    value={latestYoY ? formatPercent(latestYoY.volumeGrowth) : '—'}
+                    subtitle={latestYoY ? `${latestYoY.year}` : 'N/A'}
+                    trend={latestYoY ? (latestYoY.volumeGrowth >= 0 ? 'up' : 'down') : 'flat'}
+                  />
+                  <KpiCard
+                    label="Revenue Contribution"
+                    value={formatPercent(mastercardAnalytics.mastercard.shareRevenue)}
+                    subtitle={formatCurrency(mastercardAnalytics.mastercard.revenue)}
+                    trend={mastercardAnalytics.mastercard.shareRevenue >= 0 ? 'flat' : 'down'}
+                  />
+                  <KpiCard
+                    label="Market Share"
+                    value={formatPercent(mastercardAnalytics.mastercard.shareVolume)}
+                    subtitle="Volume Share"
+                    trend={mastercardAnalytics.mastercard.shareVolume >= 0 ? 'flat' : 'down'}
+                  />
                 </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.success_rate.toFixed(2)}%` : '—'}</p>
-              </div>
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Decline Rate</p>
-                  <div className="h-9 w-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">●</div>
+
+                <SectionCard title="Executive Snapshot" subtitle="Strategic highlights">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div className="bg-slate-50 rounded-xl p-4">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Data Range</p>
+                      <p className="text-sm text-slate-900 mt-2">{mastercardAnalytics.rangeLabel}</p>
+                      <p className="text-xs text-slate-500 mt-2">Channel Focus: {execChannel.replace('_', ' + ')}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-4">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Revenue Impact</p>
+                      <p className="text-sm text-slate-900 mt-2">Mastercard revenue share at {formatPercent(mastercardAnalytics.mastercard.shareRevenue)}</p>
+                      <p className="text-xs text-slate-500 mt-2">Total revenue: {formatCurrency(mastercardAnalytics.revenue.total)}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-4">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Merchant Footprint</p>
+                      <p className="text-sm text-slate-900 mt-2">{mastercardAnalytics.merchant.total.toLocaleString()} Mastercard merchants</p>
+                      <p className="text-xs text-slate-500 mt-2">Sector coverage across {mastercardAnalytics.sectors.distribution.length} segments</p>
+                    </div>
+                  </div>
+                  {mastercardAnalytics.insights.length > 0 && (
+                    <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                      {mastercardAnalytics.insights.map((insight) => (
+                        <div key={insight} className="border border-slate-200 rounded-lg p-3 text-xs text-slate-600 bg-white">
+                          {insight}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <SectionCard title="Mastercard Volume Trend" subtitle="Growth & Trends">
+                    <div className="h-72 bg-slate-50 rounded-xl p-3">
+                      {mastercardAnalytics.trend.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={mastercardAnalytics.trend}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="period" />
+                            <YAxis tickFormatter={(value) => value.toLocaleString()} />
+                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                            <Legend verticalAlign="top" height={24} />
+                            <Line type="monotone" dataKey="volume" name="Mastercard Volume" stroke="#dc2626" strokeWidth={2} dot={{ r: 2 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                      )}
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard title="Mastercard Count Trend" subtitle="Growth & Trends">
+                    <div className="h-72 bg-slate-50 rounded-xl p-3">
+                      {mastercardAnalytics.trend.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={mastercardAnalytics.trend}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="period" />
+                            <YAxis tickFormatter={(value) => value.toLocaleString()} />
+                            <Tooltip formatter={(value: number) => value.toLocaleString()} />
+                            <Legend verticalAlign="top" height={24} />
+                            <Line type="monotone" dataKey="count" name="Mastercard Count" stroke="#1d4ed8" strokeWidth={2} dot={{ r: 2 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                      )}
+                    </div>
+                  </SectionCard>
                 </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${(100 - currentBucket.success_rate).toFixed(2)}%` : '—'}</p>
-              </div>
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Transactions</p>
-                  <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">■</div>
+
+                <SectionCard title="Year-on-Year Growth" subtitle="Volume & count %">
+                  <div className="h-72 bg-slate-50 rounded-xl p-3">
+                    {mastercardAnalytics.yoy.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={mastercardAnalytics.yoy}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="year" />
+                          <YAxis tickFormatter={(value) => `${value}%`} />
+                          <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
+                          <Legend verticalAlign="top" height={24} />
+                          <Line type="monotone" dataKey="volumeGrowth" name="Volume YoY %" stroke="#dc2626" strokeWidth={2} dot={{ r: 2 }} />
+                          <Line type="monotone" dataKey="countGrowth" name="Count YoY %" stroke="#1d4ed8" strokeWidth={2} dot={{ r: 2 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                    )}
+                  </div>
+                </SectionCard>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <SectionCard title="Market Share (Volume)" subtitle="Mastercard vs Visa vs Amex">
+                    <div className="h-72 bg-slate-50 rounded-xl p-3">
+                      {mastercardAnalytics.marketShare.byScheme.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={mastercardAnalytics.marketShare.byScheme}
+                              dataKey="shareVolume"
+                              nameKey="scheme"
+                              innerRadius={50}
+                              outerRadius={90}
+                              label={(entry) => `${entry.scheme}: ${entry.shareVolume.toFixed(1)}%`}
+                            >
+                              {mastercardAnalytics.marketShare.byScheme.map((entry) => (
+                                <Cell
+                                  key={entry.scheme}
+                                  fill={{
+                                    MASTERCARD: '#dc2626',
+                                    VISA: '#1d4ed8',
+                                    AMEX: '#10b981',
+                                    OTHER: '#9ca3af'
+                                  }[entry.scheme]}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value: number) => `${value.toFixed(2)}%`} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                      )}
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard title="Revenue Contribution" subtitle="Scheme comparison">
+                    <div className="h-72 bg-slate-50 rounded-xl p-3">
+                      {mastercardAnalytics.revenue.byScheme.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={mastercardAnalytics.revenue.byScheme}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="scheme" />
+                            <YAxis tickFormatter={(value) => value.toLocaleString()} />
+                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                            <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                      )}
+                    </div>
+                  </SectionCard>
                 </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? currentBucket.total.toLocaleString() : '—'}</p>
-              </div>
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Business Decline %</p>
-                  <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">◆</div>
+
+                <SectionCard title="Market Share Trend" subtitle="Share by volume over time">
+                  <div className="h-72 bg-slate-50 rounded-xl p-3">
+                    {mastercardAnalytics.marketShare.trendVolume.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={mastercardAnalytics.marketShare.trendVolume}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="period" />
+                          <YAxis tickFormatter={(value) => `${value}%`} />
+                          <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
+                          <Legend verticalAlign="top" height={24} />
+                          <Bar dataKey="MASTERCARD" stackId="a" fill="#dc2626" />
+                          <Bar dataKey="VISA" stackId="a" fill="#1d4ed8" />
+                          <Bar dataKey="AMEX" stackId="a" fill="#10b981" />
+                          <Bar dataKey="OTHER" stackId="a" fill="#9ca3af" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                    )}
+                  </div>
+                </SectionCard>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <SectionCard title="Merchant Acceptance Growth" subtitle="Mastercard active merchants">
+                    <div className="h-72 bg-slate-50 rounded-xl p-3">
+                      {mastercardAnalytics.merchant.trend.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={mastercardAnalytics.merchant.trend}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="period" />
+                            <YAxis tickFormatter={(value) => value.toLocaleString()} />
+                            <Tooltip formatter={(value: number) => value.toLocaleString()} />
+                            <Legend verticalAlign="top" height={24} />
+                            <Line type="monotone" dataKey="merchants" name="Mastercard Merchants" stroke="#0f766e" strokeWidth={2} dot={{ r: 2 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                      )}
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard title="Sector Distribution" subtitle="Mastercard volume & penetration">
+                    <div className="h-72 bg-slate-50 rounded-xl p-3">
+                      {mastercardAnalytics.sectors.top.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={mastercardAnalytics.sectors.top} layout="vertical" margin={{ left: 40 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" tickFormatter={(value) => value.toLocaleString()} />
+                            <YAxis type="category" dataKey="sector" width={120} />
+                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                            <Bar dataKey="volume" fill="#f97316" radius={[4, 4, 4, 4]}>
+                              <LabelList dataKey="penetration" position="right" formatter={(value: number) => `${value.toFixed(1)}%`} />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                      )}
+                    </div>
+                  </SectionCard>
                 </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.business_rate.toFixed(2)}%` : '—'}</p>
-              </div>
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">User Decline %</p>
-                  <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">◆</div>
+
+                <SectionCard title="Sector Treemap" subtitle="Mastercard volume by sector">
+                  <div className="h-72 bg-slate-50 rounded-xl p-3">
+                    {mastercardAnalytics.sectors.top.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <Treemap
+                          data={mastercardAnalytics.sectors.top.map((item) => ({
+                            name: item.sector,
+                            size: item.volume
+                          }))}
+                          dataKey="size"
+                          stroke="#ffffff"
+                          fill="#dc2626"
+                        />
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                    )}
+                  </div>
+                </SectionCard>
+              </>
+            )}
+
+            {viewMode === 'OPERATIONAL' && (
+              <>
+                {/* KPI Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Success Rate</p>
+                      <div className="h-9 w-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">▲</div>
+                    </div>
+                    <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.success_rate.toFixed(2)}%` : '—'}</p>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Decline Rate</p>
+                      <div className="h-9 w-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">●</div>
+                    </div>
+                    <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${(100 - currentBucket.success_rate).toFixed(2)}%` : '—'}</p>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Transactions</p>
+                      <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">■</div>
+                    </div>
+                    <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? currentBucket.total.toLocaleString() : '—'}</p>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Business Decline %</p>
+                      <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">◆</div>
+                    </div>
+                    <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.business_rate.toFixed(2)}%` : '—'}</p>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">User Decline %</p>
+                      <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">◆</div>
+                    </div>
+                    <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.user_rate.toFixed(2)}%` : '—'}</p>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Technical Decline %</p>
+                      <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">◆</div>
+                    </div>
+                    <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.technical_rate.toFixed(2)}%` : '—'}</p>
+                  </div>
                 </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.user_rate.toFixed(2)}%` : '—'}</p>
-              </div>
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Technical Decline %</p>
-                  <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">◆</div>
-                </div>
-                <p className="text-3xl font-bold text-slate-900 mt-3">{currentBucket ? `${currentBucket.technical_rate.toFixed(2)}%` : '—'}</p>
-              </div>
-            </div>
 
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-wrap items-center gap-3">
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Period Focus</div>
@@ -994,6 +1383,8 @@ const App: React.FC = () => {
                 </div>
               )}
             </div>
+              </>
+            )}
           </div>
         )}
       </main>

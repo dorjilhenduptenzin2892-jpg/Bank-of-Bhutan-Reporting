@@ -31,6 +31,14 @@ export async function processExcel(
 
         if (rawData.length === 0) throw new Error("Excel file is empty");
 
+        const normalizeChannel = (value?: string, fallback?: ReportType) => {
+          const raw = (value || '').trim().toUpperCase();
+          if (raw.includes('POS')) return 'POS' as const;
+          if (raw.includes('ATM')) return 'ATM' as const;
+          if (raw.includes('IPG') || raw.includes('ECOM') || raw.includes('E-COM') || raw.includes('ONLINE')) return 'IPG' as const;
+          return fallback || 'POS';
+        };
+
         const transactions: RawTransaction[] = rawData.map((tx) => {
           const rawDate = tx.TRANSACTION_DATE;
           const parsedDate = typeof rawDate === 'number'
@@ -39,12 +47,14 @@ export async function processExcel(
 
           return {
             transaction_datetime: parsedDate,
-            channel: reportType,
+            channel: normalizeChannel(tx.TXN_TYPE, reportType),
             response_code: String(tx.RESPONSE_CODE || '').trim(),
             response_description: tx.RESPONSE_REASON || tx.RESPONSE_CATEGORY || 'Unknown',
             card_network: tx.CARD_NETWORK,
             mid: tx.MID,
-            amount: tx.VALUE
+            amount: tx.VALUE,
+            mcc: tx.MCC,
+            merchant_name: tx.MERCHANT_NAME
           };
         });
 

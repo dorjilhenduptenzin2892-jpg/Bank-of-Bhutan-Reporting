@@ -8,6 +8,8 @@ export interface RawTransaction {
   card_network?: string;
   mid?: string;
   amount?: number;
+  mcc?: string;
+  merchant_name?: string;
 }
 
 function toDate(value: string | Date): Date {
