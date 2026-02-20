@@ -13,23 +13,17 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalyticsReady, onLoadi
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [progress, setProgress] = useState(0);
   const [rowsLoaded, setRowsLoaded] = useState(0);
-  const [invalidRows, setInvalidRows] = useState(0);
-  const [invalidBreakdown, setInvalidBreakdown] = useState({ currencyMismatch: 0, unknownChannel: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const resetStats = () => {
     setProgress(0);
     setRowsLoaded(0);
-    setInvalidRows(0);
-    setInvalidBreakdown({ currencyMismatch: 0, unknownChannel: 0 });
     setError(null);
   };
 
   const finalizeAnalytics = (analytics: AnalyticsResult) => {
     setRowsLoaded(analytics.meta.rowsLoaded);
-    setInvalidRows(analytics.meta.invalidRows);
-    setInvalidBreakdown(analytics.meta.invalidByReason);
     setProgress(100);
     onAnalyticsReady(analytics);
   };
@@ -164,17 +158,10 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalyticsReady, onLoadi
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Rows Loaded</div>
           <div className="text-2xl font-bold text-slate-900 mt-2">{rowsLoaded.toLocaleString()}</div>
-        </div>
-        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Invalid Rows Excluded</div>
-          <div className="text-2xl font-bold text-slate-900 mt-2">{invalidRows.toLocaleString()}</div>
-          <div className="text-xs text-slate-500 mt-2">
-            Currency mismatch: {invalidBreakdown.currencyMismatch.toLocaleString()} · Unknown channel: {invalidBreakdown.unknownChannel.toLocaleString()}
-          </div>
         </div>
         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Progress</div>

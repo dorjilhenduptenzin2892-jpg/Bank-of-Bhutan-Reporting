@@ -16,11 +16,11 @@ import type {
   RawAcquiringRow
 } from '../types/analytics';
 
-const POS_ATM_CURRENCIES = new Set(['064', '524']);
+const POS_ATM_CURRENCIES = new Set(['064', '356']);
 const IPG_CURRENCIES = new Set(['840', '356']);
 const BRAND_ORDER: Array<Exclude<Brand, 'Other'>> = ['Visa', 'MasterCard', 'AMEX'];
 const CHANNEL_ORDER: Channel[] = ['POS', 'ATM', 'IPG'];
-const CATEGORY_ORDER: FailureCategory[] = ['Business', 'Technical', 'User', 'Unknown'];
+const CATEGORY_ORDER: FailureCategory[] = ['Business', 'Technical', 'User'];
 
 const initCurrencyRecord = (): Record<Currency, number> => ({
   BTN: 0,
@@ -94,11 +94,11 @@ const normalizeBrand = (value?: string): Brand => {
 
 const normalizeCategory = (value?: string): FailureCategory => {
   const raw = safeString(value).toUpperCase();
-  if (!raw) return 'Unknown';
+  if (!raw) return 'Business';
   if (raw.includes('BUSINESS')) return 'Business';
   if (raw.includes('TECH')) return 'Technical';
   if (raw.includes('USER') || raw.includes('CARDHOLDER')) return 'User';
-  return 'Unknown';
+  return 'Business';
 };
 
 const normalizeCurrencyCode = (value?: string | number) => {
@@ -153,14 +153,13 @@ export const createAnalyticsAggregator = (): AnalyticsAggregator => {
   const failureCategoryTotals: Record<FailureCategory, number> = {
     Business: 0,
     Technical: 0,
-    User: 0,
-    Unknown: 0
+    User: 0
   };
 
   const failureCategoryByChannel: Record<Channel, Record<FailureCategory, number>> = {
-    POS: { Business: 0, Technical: 0, User: 0, Unknown: 0 },
-    ATM: { Business: 0, Technical: 0, User: 0, Unknown: 0 },
-    IPG: { Business: 0, Technical: 0, User: 0, Unknown: 0 }
+    POS: { Business: 0, Technical: 0, User: 0 },
+    ATM: { Business: 0, Technical: 0, User: 0 },
+    IPG: { Business: 0, Technical: 0, User: 0 }
   };
 
   const failureReasonMap = new Map<string, FailureReasonRecord>();
