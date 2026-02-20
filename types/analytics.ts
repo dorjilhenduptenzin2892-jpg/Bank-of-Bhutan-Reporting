@@ -1,6 +1,6 @@
 export type Channel = 'POS' | 'ATM' | 'IPG';
 export type Brand = 'Visa' | 'MasterCard' | 'AMEX' | 'Other';
-export type FailureCategory = 'Business' | 'Technical' | 'User' | 'Unknown';
+export type FailureCategory = 'Business' | 'Technical' | 'User';
 export type Currency = 'BTN' | 'USD' | 'INR';
 
 export interface RawAcquiringRow {

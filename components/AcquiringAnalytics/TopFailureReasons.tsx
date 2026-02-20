@@ -71,7 +71,6 @@ const TopFailureReasons: React.FC<TopFailureReasonsProps> = ({ data, loading }) 
             <option value="Business">Business</option>
             <option value="Technical">Technical</option>
             <option value="User">User</option>
-            <option value="Unknown">Unknown</option>
           </select>
         </div>
       </div>
