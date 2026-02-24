@@ -130,23 +130,29 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalyticsReady, onLoadi
   };
 
   return (
-    <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+    <section className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg transition-all">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
         <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Upload Raw Data</p>
-          <h2 className="text-2xl font-bold text-slate-900">Acquiring Transaction Analytics</h2>
-          <p className="text-sm text-slate-500 mt-2 max-w-xl">
-            Upload the full-year acquiring transaction file (CSV or XLSX). Currency validation is enforced by channel.
+          <p className="text-xs font-semibold text-blue-700 uppercase tracking-widest mb-1">Upload Raw Data</p>
+          <h2 className="text-3xl font-extrabold text-slate-900 mb-2">Acquiring Transaction Analytics</h2>
+          <p className="text-base text-slate-600 max-w-xl mb-2">
+            Upload your full-year acquiring transaction file (<span className="font-mono">.csv</span> or <span className="font-mono">.xlsx</span>).<br />
+            <span className="text-blue-700 font-semibold">Currency validation</span> is enforced by channel.<br />
+            <span className="text-emerald-700 font-semibold">New:</span> Export includes a debug sheet showing excluded rows and reasons.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 items-start md:items-center">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm"
+            className="bg-gradient-to-r from-blue-700 to-blue-500 hover:from-blue-800 hover:to-blue-600 text-white px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-wider shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 transition-all duration-150"
             disabled={loading}
           >
-            {loading ? 'Processing...' : 'Upload Raw Data'}
+            {loading ? (
+              <span className="flex items-center gap-2"><span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> Processing...</span>
+            ) : (
+              <span className="flex items-center gap-2"><svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg> Upload Raw Data</span>
+            )}
           </button>
           <input
             ref={fileInputRef}
@@ -158,29 +164,32 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalyticsReady, onLoadi
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Rows Loaded</div>
-          <div className="text-2xl font-bold text-slate-900 mt-2">{rowsLoaded.toLocaleString()}</div>
+          <div className="text-3xl font-extrabold text-blue-700 mt-2">{rowsLoaded.toLocaleString()}</div>
         </div>
-        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Progress</div>
-          <div className="mt-2 h-2 bg-white rounded-full border border-slate-200 overflow-hidden">
-            <div className="h-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
+          <div className="mt-2 h-3 bg-white rounded-full border border-slate-200 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all" style={{ width: `${progress}%` }} />
           </div>
           <div className="text-xs text-slate-500 mt-2">{progress}% complete</div>
         </div>
       </div>
 
       {loading && (
-        <div className="mt-6 flex items-center gap-3 text-sm text-slate-600">
-          <div className="h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="mt-8 flex items-center gap-3 text-base text-blue-700 font-semibold">
+          <div className="h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
           Parsing data and calculating analytics. This may take a few moments for large files.
         </div>
       )}
 
       {error && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+        <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700 font-semibold shadow-sm flex items-center gap-2">
+          <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>
+          {error}
+        </div>
       )}
     </section>
   );

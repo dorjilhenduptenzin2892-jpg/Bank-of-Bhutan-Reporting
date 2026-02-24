@@ -12,24 +12,21 @@ const formatNumber = (value: number, decimals = 0) =>
 
 const FailureCategoryAnalytics: React.FC<FailureCategoryAnalyticsProps> = ({ data, loading }) => {
   if (loading) {
-    return <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm animate-pulse h-64" />;
+    return <section className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg animate-pulse h-64" />;
   }
-
   if (!data) {
     return (
-      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <p className="text-sm text-slate-500">Failure category analysis will appear after data upload.</p>
+      <section className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg">
+        <p className="text-base text-slate-500">Failure category analysis will appear after data upload.</p>
       </section>
     );
   }
-
   const overallCategories = data.failureCategories.overall;
   const chartData = overallCategories.map((item) => ({
     category: item.category,
     count: item.count,
     share: item.share
   }));
-
   const renderCategoryTable = (rows: FailureCategorySummary[]) => (
     <table className="min-w-full text-sm">
       <thead className="bg-slate-50 sticky top-0">
@@ -50,14 +47,13 @@ const FailureCategoryAnalytics: React.FC<FailureCategoryAnalyticsProps> = ({ dat
       </tbody>
     </table>
   );
-
   return (
-    <section className="space-y-6">
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+    <section className="space-y-8">
+      <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Failure Category Breakdown</p>
-            <h3 className="text-lg font-bold text-slate-900">Overall Category Share</h3>
+            <p className="text-xs font-semibold text-blue-700 uppercase tracking-widest">Failure Category Breakdown</p>
+            <h3 className="text-2xl font-extrabold text-slate-900">Overall Category Share</h3>
           </div>
         </div>
         <div className="h-64">
@@ -73,7 +69,6 @@ const FailureCategoryAnalytics: React.FC<FailureCategoryAnalyticsProps> = ({ dat
           </ResponsiveContainer>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm overflow-x-auto">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Overall Categories</div>

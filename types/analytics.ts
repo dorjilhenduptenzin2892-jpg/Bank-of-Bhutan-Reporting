@@ -1,3 +1,8 @@
+export interface ExcludedRowDebug {
+  rowIndex: number;
+  reason: string;
+  row: RawAcquiringRow;
+}
 export type Channel = 'POS' | 'ATM' | 'IPG';
 export type Brand = 'Visa' | 'MasterCard' | 'AMEX' | 'Other';
 export type FailureCategory = 'Business' | 'Technical' | 'User';
@@ -105,4 +110,5 @@ export interface AnalyticsResult {
   failureCategories: FailureCategoryBreakdown;
   failureReasonMatrix: FailureReasonRecord[];
   meta: AnalyticsMeta;
+  excludedRows?: ExcludedRowDebug[];
 }

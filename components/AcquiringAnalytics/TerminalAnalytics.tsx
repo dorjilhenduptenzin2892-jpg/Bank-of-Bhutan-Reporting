@@ -12,7 +12,6 @@ const formatNumber = (value: number, decimals = 0) =>
 
 const TerminalAnalytics: React.FC<TerminalAnalyticsProps> = ({ data, loading }) => {
   const terminal = data?.terminal ?? [];
-
   const chartData = terminal.map((item) => ({
     channel: item.channel,
     success: item.successCount,
@@ -21,25 +20,24 @@ const TerminalAnalytics: React.FC<TerminalAnalyticsProps> = ({ data, loading }) 
 
   if (loading) {
     return (
-      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm animate-pulse h-64" />
+      <section className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg animate-pulse h-64" />
     );
   }
-
   if (!data) {
     return (
-      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <p className="text-sm text-slate-500">Terminal analytics will appear after data upload.</p>
+      <section className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg">
+        <p className="text-base text-slate-500">Terminal analytics will appear after data upload.</p>
       </section>
     );
   }
 
   return (
-    <section className="space-y-6">
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+    <section className="space-y-8">
+      <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Terminal Type Summary</p>
-            <h3 className="text-lg font-bold text-slate-900">Success vs Failure by Channel</h3>
+            <p className="text-xs font-semibold text-blue-700 uppercase tracking-widest">Terminal Type Summary</p>
+            <h3 className="text-2xl font-extrabold text-slate-900">Success vs Failure by Channel</h3>
           </div>
         </div>
         <div className="h-64">
@@ -57,7 +55,7 @@ const TerminalAnalytics: React.FC<TerminalAnalyticsProps> = ({ data, loading }) 
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm overflow-x-auto">
+      <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 sticky top-0">
             <tr className="text-left text-xs uppercase tracking-widest text-slate-500">

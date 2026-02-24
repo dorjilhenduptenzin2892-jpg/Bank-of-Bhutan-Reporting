@@ -21,31 +21,28 @@ const TopFailureReasons: React.FC<TopFailureReasonsProps> = ({ data, loading }) 
     if (!data) return [];
     return getTopFailureReasons(data, filters);
   }, [data, filters]);
-
   if (loading) {
-    return <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm animate-pulse h-64" />;
+    return <section className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg animate-pulse h-64" />;
   }
-
   if (!data) {
     return (
-      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <p className="text-sm text-slate-500">Failure reasons will appear after data upload.</p>
+      <section className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg">
+        <p className="text-base text-slate-500">Failure reasons will appear after data upload.</p>
       </section>
     );
   }
-
   return (
-    <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+    <section className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
         <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Top Failure Reasons</p>
-          <h3 className="text-lg font-bold text-slate-900">Top 10 Decline Drivers</h3>
+          <p className="text-xs font-semibold text-blue-700 uppercase tracking-widest">Top Failure Reasons</p>
+          <h3 className="text-2xl font-extrabold text-slate-900">Top 10 Decline Drivers</h3>
         </div>
         <div className="flex flex-wrap gap-3">
           <select
             value={filters.channel}
             onChange={(e) => setFilters((prev) => ({ ...prev, channel: e.target.value as FailureReasonFilters['channel'] }))}
-            className="text-xs border border-slate-200 rounded px-3 py-2"
+            className="text-xs border border-slate-200 rounded px-3 py-2 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200"
           >
             <option value="ALL">All Channels</option>
             <option value="POS">POS</option>
@@ -55,7 +52,7 @@ const TopFailureReasons: React.FC<TopFailureReasonsProps> = ({ data, loading }) 
           <select
             value={filters.brand}
             onChange={(e) => setFilters((prev) => ({ ...prev, brand: e.target.value as FailureReasonFilters['brand'] }))}
-            className="text-xs border border-slate-200 rounded px-3 py-2"
+            className="text-xs border border-slate-200 rounded px-3 py-2 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200"
           >
             <option value="ALL">All Brands</option>
             <option value="Visa">Visa</option>
@@ -74,7 +71,6 @@ const TopFailureReasons: React.FC<TopFailureReasonsProps> = ({ data, loading }) 
           </select>
         </div>
       </div>
-
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 sticky top-0">
@@ -101,7 +97,7 @@ const TopFailureReasons: React.FC<TopFailureReasonsProps> = ({ data, loading }) 
             ))}
           </tbody>
         </table>
-      </div>
+	  </div>
     </section>
   );
 };

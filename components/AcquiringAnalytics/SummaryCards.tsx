@@ -58,9 +58,9 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ data, loading }) => {
 
   if (loading) {
     return (
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 7 }).map((_, index) => (
-          <div key={index} className="h-28 bg-white border border-slate-200 rounded-2xl shadow-sm animate-pulse" />
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm animate-pulse h-24" />
         ))}
       </section>
     );
@@ -68,18 +68,36 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ data, loading }) => {
 
   if (!data) {
     return (
-      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <p className="text-sm text-slate-500">Upload a raw transaction file to generate summary metrics.</p>
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col items-start">
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Summary</div>
+            <div className="text-2xl font-bold text-slate-300">--</div>
+          </div>
+        ))}
       </section>
     );
   }
 
+  const icons = [
+    <svg key="txns" className="h-6 w-6 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 6h18M3 14h18M3 18h18" /></svg>,
+    <svg key="success" className="h-6 w-6 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>,
+    <svg key="fail" className="h-6 w-6 text-red-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>,
+    <svg key="rate" className="h-6 w-6 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m4 4h1a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v7a2 2 0 002 2h1" /></svg>,
+    <svg key="btn" className="h-6 w-6 text-yellow-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z" /></svg>,
+    <svg key="usd" className="h-6 w-6 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z" /></svg>,
+    <svg key="inr" className="h-6 w-6 text-orange-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z" /></svg>
+  ];
+
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((card) => (
-        <div key={card.label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">{card.label}</div>
-          <div className="text-2xl font-bold text-slate-900 mt-2">{card.value}</div>
+    <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {cards.map((card, i) => (
+        <div key={card.label} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md flex flex-col items-start gap-2 transition-all">
+          <div className="flex items-center gap-2 mb-1">
+            {icons[i]}
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">{card.label}</span>
+          </div>
+          <div className="text-3xl font-extrabold text-blue-700 animate-fade-in">{card.value}</div>
         </div>
       ))}
     </section>

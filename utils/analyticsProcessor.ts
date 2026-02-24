@@ -16,7 +16,13 @@ import type {
   RawAcquiringRow
 } from '../types/analytics';
 
-const POS_ATM_CURRENCIES = new Set(['064', '356']);
+export interface ExcludedRowDebug {
+  rowIndex: number;
+  reason: string;
+  row: RawAcquiringRow;
+}
+
+const POS_ATM_CURRENCIES = new Set(['064', '356', '524']);
 const IPG_CURRENCIES = new Set(['840', '356']);
 const BRAND_ORDER: Array<Exclude<Brand, 'Other'>> = ['Visa', 'MasterCard', 'AMEX'];
 const CHANNEL_ORDER: Channel[] = ['POS', 'ATM', 'IPG'];
@@ -95,9 +101,9 @@ const normalizeBrand = (value?: string): Brand => {
 const normalizeCategory = (value?: string): FailureCategory => {
   const raw = safeString(value).toUpperCase();
   if (!raw) return 'Business';
-  if (raw.includes('BUSINESS')) return 'Business';
+  if (raw.includes('USER') || raw.includes('CARDHOLDER') || raw.includes('USER ERROR')) return 'User';
   if (raw.includes('TECH')) return 'Technical';
-  if (raw.includes('USER') || raw.includes('CARDHOLDER')) return 'User';
+  if (raw.includes('BUSINESS')) return 'Business';
   return 'Business';
 };
 
@@ -108,9 +114,11 @@ const normalizeCurrencyCode = (value?: string | number) => {
 };
 
 const currencyFromCode = (code: string, channel: Channel): Currency => {
+  // Channel takes priority over currency interpretation
   if (channel === 'IPG') {
     return code === '840' ? 'USD' : 'INR';
   }
+  // POS/ATM: treat 064 and 356 as BTN (override rule)
   return 'BTN';
 };
 
@@ -121,12 +129,14 @@ const isValidCurrency = (channel: Channel, code: string) => {
 
 const computeRate = (count: number, total: number) => (total > 0 ? (count / total) * 100 : 0);
 
+
 export interface AnalyticsAggregator {
-  addRow: (row: RawAcquiringRow) => void;
+  addRow: (row: RawAcquiringRow, rowIndex?: number) => void;
   finalize: () => AnalyticsResult;
 }
 
 export const createAnalyticsAggregator = (): AnalyticsAggregator => {
+    const excludedRows: ExcludedRowDebug[] = [];
   const meta: AnalyticsMeta = {
     rowsLoaded: 0,
     rowsProcessed: 0,
@@ -164,13 +174,15 @@ export const createAnalyticsAggregator = (): AnalyticsAggregator => {
 
   const failureReasonMap = new Map<string, FailureReasonRecord>();
 
-  const addRow = (row: RawAcquiringRow) => {
+
+  const addRow = (row: RawAcquiringRow, rowIndex?: number) => {
     meta.rowsLoaded += 1;
 
     const channel = normalizeChannel(row.TXN_TYPE);
     if (channel === 'UNKNOWN') {
       meta.invalidRows += 1;
       meta.invalidByReason.unknownChannel += 1;
+      excludedRows.push({ rowIndex: rowIndex ?? meta.rowsLoaded, reason: 'Unknown channel', row });
       return;
     }
 
@@ -178,6 +190,7 @@ export const createAnalyticsAggregator = (): AnalyticsAggregator => {
     if (!isValidCurrency(channel, currencyCode)) {
       meta.invalidRows += 1;
       meta.invalidByReason.currencyMismatch += 1;
+      excludedRows.push({ rowIndex: rowIndex ?? meta.rowsLoaded, reason: 'Currency mismatch', row });
       return;
     }
 
@@ -317,7 +330,8 @@ export const createAnalyticsAggregator = (): AnalyticsAggregator => {
       brands,
       failureCategories,
       failureReasonMatrix,
-      meta
+      meta,
+      excludedRows
     };
   };
 
@@ -326,7 +340,7 @@ export const createAnalyticsAggregator = (): AnalyticsAggregator => {
 
 export const processAcquiringAnalytics = (rows: RawAcquiringRow[]): AnalyticsResult => {
   const aggregator = createAnalyticsAggregator();
-  rows.forEach((row) => aggregator.addRow(row));
+  rows.forEach((row, idx) => aggregator.addRow(row, idx + 1));
   return aggregator.finalize();
 };
 
