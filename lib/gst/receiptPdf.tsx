@@ -180,34 +180,34 @@ const ReceiptDocument: React.FC<{ input: ReceiptInput }> = ({ input }) => {
             </View>
             <View style={[certRow, { backgroundColor: '#f3f4f6' }]}> 
               <Text style={{ ...certCell, fontWeight: 700 }}>Particulars</Text>
-              <Text style={{ ...certCellLast, fontWeight: 700 }}>Amount (BTN)</Text>
+              <Text style={{ ...certCellLast, fontWeight: 700 }}>Amount ({input.bilCurrLabel})</Text>
             </View>
             <View style={certRow}>
               <Text style={certCell}>Total Transaction</Text>
-              <Text style={certCellLast}>{money('BTN', input.gross)}</Text>
+              <Text style={certCellLast}>{money(input.bilCurrLabel, input.gross)}</Text>
             </View>
             <View style={certRow}>
               <Text style={certCell}>Total Bank Commission (MDR {input.mdrPct.toFixed(2)}%)</Text>
-              <Text style={certCellLast}>{money('BTN', input.mdrAmount)}</Text>
+              <Text style={certCellLast}>{money(input.bilCurrLabel, input.mdrAmount)}</Text>
             </View>
             <View style={certRow}>
               <Text style={certCell}>Total GST on Commission (5.00%)</Text>
-              <Text style={certCellLast}>{money('BTN', input.gstAmount)}</Text>
+              <Text style={certCellLast}>{money(input.bilCurrLabel, input.gstAmount)}</Text>
             </View>
             <View style={certRow}>
               <Text style={certCell}>Total Deduction</Text>
-              <Text style={certCellLast}>{money('BTN', input.totalDeduction)}</Text>
+              <Text style={certCellLast}>{money(input.bilCurrLabel, input.totalDeduction)}</Text>
             </View>
             <View style={certRow}>
               <Text style={{ ...certCell, fontWeight: 700 }}>Net Amount Paid to Merchant</Text>
-              <Text style={{ ...certCellLast, fontWeight: 700 }}>{money('BTN', input.netPayable)}</Text>
+              <Text style={{ ...certCellLast, fontWeight: 700 }}>{money(input.bilCurrLabel, input.netPayable)}</Text>
             </View>
           </View>
 
           <View style={styles.declaration}>
             <Text style={styles.sectionTitle}>Declaration</Text>
             <Text>
-              This is to certify that GST amounting to <Text style={{ fontWeight: 700 }}>BTN {input.gstAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} </Text>
+              This is to certify that GST amounting to <Text style={{ fontWeight: 700 }}>{input.bilCurrLabel} {input.gstAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} </Text>
               has been deducted for the above settlement month.
             </Text>
             <Text>
