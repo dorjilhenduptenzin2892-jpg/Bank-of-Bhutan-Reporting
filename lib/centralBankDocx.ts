@@ -229,6 +229,7 @@ function buildCentralBankDocument(data: ReportData): Document {
         children: [
           new ImageRun({
             data: base64ToBytes(HEADER_IMAGE_BASE64),
+            type: 'png',
             transformation: { width: 600, height: 101 }
           })
         ]
@@ -243,6 +244,7 @@ function buildCentralBankDocument(data: ReportData): Document {
         children: [
           new ImageRun({
             data: base64ToBytes(FOOTER_IMAGE_BASE64),
+            type: 'png',
             transformation: { width: 450, height: 31 }
           })
         ]
