@@ -85,7 +85,7 @@ const normalizeChannel = (value?: string): Channel | 'UNKNOWN' => {
   const raw = safeString(value).toUpperCase();
   if (raw.includes('POS')) return 'POS';
   if (raw.includes('ATM')) return 'ATM';
-  if (raw.includes('IPG')) return 'IPG';
+  if (raw.includes('IPG') || raw.includes('ECOM') || raw.includes('E-COM') || raw.includes('ONLINE') || raw.includes('INTERNET')) return 'IPG';
   return 'UNKNOWN';
 };
 
@@ -109,8 +109,38 @@ const normalizeCategory = (value?: string): FailureCategory => {
 
 const normalizeCurrencyCode = (value?: string | number) => {
   if (value === null || value === undefined) return '';
-  const raw = String(value).trim();
-  return raw.padStart(3, '0');
+  const raw = String(value).trim().toUpperCase();
+  if (!raw) return '';
+
+  // Accept both alpha and numeric currency forms from uploads.
+  if (raw === 'BTN' || raw === 'NU' || raw === 'NU.' || raw === 'NGULTRUM') return '064';
+  if (raw === 'USD' || raw === 'US$' || raw === '$') return '840';
+  if (raw === 'INR' || raw === 'RS' || raw === 'RS.' || raw === 'RUPEE') return '356';
+
+  if (/^\d+$/.test(raw)) return raw.padStart(3, '0');
+  return raw;
+};
+
+const normalizeResponseCode = (value?: string | number) => {
+  const raw = safeString(value).toUpperCase();
+  if (!raw) return '';
+  if (raw.includes('SUCCESS') || raw.includes('APPROV')) return '00';
+  if (raw.includes('FAIL') || raw.includes('DECLIN')) return '05';
+  if (/^0+$/.test(raw)) return '00';
+  if (/^\d+$/.test(raw)) return raw.length === 1 ? raw.padStart(2, '0') : raw;
+  return raw;
+};
+
+const isSuccessStatus = (value?: string) => {
+  const raw = safeString(value).toUpperCase();
+  if (!raw) return false;
+  if (raw.includes('FAIL') || raw.includes('DECLIN')) return false;
+  return raw.includes('SUCCESS') || raw.includes('APPROV');
+};
+
+const hasFailureStatus = (value?: string) => {
+  const raw = safeString(value).toUpperCase();
+  return raw.includes('FAIL') || raw.includes('DECLIN');
 };
 
 const currencyFromCode = (code: string, channel: Channel): Currency => {
@@ -128,6 +158,16 @@ const isValidCurrency = (channel: Channel, code: string) => {
 };
 
 const computeRate = (count: number, total: number) => (total > 0 ? (count / total) * 100 : 0);
+
+const normalizeKey = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+const pick = (row: Record<string, unknown>, aliases: string[]) => {
+  const aliasSet = new Set(aliases.map(normalizeKey));
+  for (const key of Object.keys(row)) {
+    if (aliasSet.has(normalizeKey(key))) return row[key];
+  }
+  return undefined;
+};
 
 
 export interface AnalyticsAggregator {
@@ -177,8 +217,8 @@ export const createAnalyticsAggregator = (): AnalyticsAggregator => {
 
   const addRow = (row: RawAcquiringRow, rowIndex?: number) => {
     meta.rowsLoaded += 1;
-
-    const channel = normalizeChannel(row.TXN_TYPE);
+    const channelValue = pick(row as Record<string, unknown>, ['TXN_TYPE', 'TXN TYPE', 'CHANNEL', 'TERMINAL TYPE']);
+    const channel = normalizeChannel(String(channelValue ?? ''));
     if (channel === 'UNKNOWN') {
       meta.invalidRows += 1;
       meta.invalidByReason.unknownChannel += 1;
@@ -186,7 +226,8 @@ export const createAnalyticsAggregator = (): AnalyticsAggregator => {
       return;
     }
 
-    const currencyCode = normalizeCurrencyCode(row.CURRENCY);
+    const currencyValue = pick(row as Record<string, unknown>, ['CURRENCY', 'CURR', 'CCY']);
+    const currencyCode = normalizeCurrencyCode(currencyValue as string | number | undefined);
     if (!isValidCurrency(channel, currencyCode)) {
       meta.invalidRows += 1;
       meta.invalidByReason.currencyMismatch += 1;
@@ -194,10 +235,14 @@ export const createAnalyticsAggregator = (): AnalyticsAggregator => {
       return;
     }
 
-    const value = parseAmount(row.VALUE);
-    const responseCode = safeString(row.RESPONSE_CODE);
-    const isSuccess = responseCode === '00';
-    const brand = normalizeBrand(row.CARD_NETWORK);
+    const value = parseAmount(pick(row as Record<string, unknown>, ['VALUE', 'AMOUNT', 'TXN AMOUNT']));
+    const responseCode = normalizeResponseCode(pick(row as Record<string, unknown>, ['RESPONSE_CODE', 'RESPONSE CODE', 'RC', 'CODE']) as string | number | undefined);
+    const statusValue = String(pick(row as Record<string, unknown>, ['SUCCESS/FAILURE', 'Success/failure', 'STATUS']) ?? '');
+    const statusSuccess = isSuccessStatus(statusValue);
+    const statusFailure = hasFailureStatus(statusValue);
+    // Success/Failure column is source of truth when available.
+    const isSuccess = statusSuccess ? true : statusFailure ? false : responseCode === '00';
+    const brand = normalizeBrand(String(pick(row as Record<string, unknown>, ['CARD_NETWORK', 'CARD NETWORK', 'CARD BRAND', 'BRAND', 'SCHEME']) ?? ''));
     const currency = currencyFromCode(currencyCode, channel);
 
     meta.rowsProcessed += 1;
@@ -244,11 +289,11 @@ export const createAnalyticsAggregator = (): AnalyticsAggregator => {
     }
 
     if (!isSuccess) {
-      const category = normalizeCategory(row.RESPONSE_CATEGORY);
+      const category = normalizeCategory(String(pick(row as Record<string, unknown>, ['RESPONSE_CATEGORY', 'RESPONSE CATEGORY', 'CATEGORY']) ?? ''));
       failureCategoryTotals[category] += 1;
       failureCategoryByChannel[channel][category] += 1;
 
-      const reason = safeString(row.RESPONSE_REASON) || 'Unknown Reason';
+      const reason = safeString(pick(row as Record<string, unknown>, ['RESPONSE_REASON', 'RESPONSE REASON', 'REASON'])) || 'Unknown Reason';
       const recordKey = `${reason}|${channel}|${brand}|${category}`;
       const existing = failureReasonMap.get(recordKey);
       if (existing) {

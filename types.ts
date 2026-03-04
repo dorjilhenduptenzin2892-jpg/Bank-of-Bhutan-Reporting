@@ -29,6 +29,8 @@ export interface ReportData {
   failureRate: number;
   dateRange: string;
   year: string;
+  startDateIso?: string;
+  endDateIso?: string;
   businessFailures: StandardizedDecline[];
   technicalFailures: StandardizedDecline[];
   totalTransactions: number;

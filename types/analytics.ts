@@ -18,6 +18,7 @@ export interface RawAcquiringRow {
   RRNO?: string;
   MCC?: string;
   CURRENCY?: string | number;
+  'Success/failure'?: string;
   RESPONSE_CODE?: string;
   RESPONSE_REASON?: string;
   RESPONSE_CATEGORY?: string;

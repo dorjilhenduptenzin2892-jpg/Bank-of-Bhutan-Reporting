@@ -2,9 +2,11 @@ export type PeriodType = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'QUARTERLY'
 
 export interface RawTransaction {
   transaction_datetime: string | Date;
-  channel: 'POS' | 'ATM' | 'IPG';
+  channel: 'POS' | 'ATM' | 'IPG' | 'UNKNOWN';
   response_code: string;
+  success_status?: string;
   response_description?: string;
+  response_category?: string;
   card_network?: string;
   mid?: string;
   amount?: number;

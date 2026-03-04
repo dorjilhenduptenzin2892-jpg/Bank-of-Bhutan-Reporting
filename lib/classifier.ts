@@ -10,6 +10,10 @@ export const TECHNICAL_CODES = new Set(Object.keys(TECHNICAL_CODE_DICTIONARY));
 function normalizeCode(code: string | number | null | undefined): string {
   if (code === null || code === undefined) return '';
   let normalized = String(code).trim().toUpperCase();
+  // Treat any code that is all zeros (e.g., '0', '00', '000', '0000') as '00'
+  if (/^0+$/.test(normalized)) {
+    return '00';
+  }
   if (/^\d+$/.test(normalized)) {
     if (normalized.length === 1) {
       normalized = normalized.padStart(2, '0');

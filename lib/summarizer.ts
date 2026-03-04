@@ -1,6 +1,7 @@
 import type { ReportType } from '../types';
 import type { BucketKPI } from './kpi';
 import type { ComparisonResult } from './comparison';
+import type { PeriodType } from './bucketing';
 
 const USER_REASON_MAP: Record<string, string> = {
   '51': 'customer liquidity constraints (insufficient funds)',
@@ -16,7 +17,7 @@ const USER_REASON_MAP: Record<string, string> = {
 
 export function generateExecutiveSummary(
   channel: ReportType,
-  period: 'WEEKLY' | 'MONTHLY' | 'YEARLY',
+  period: PeriodType,
   buckets: BucketKPI[],
   comparisons: ComparisonResult[]
 ): string {

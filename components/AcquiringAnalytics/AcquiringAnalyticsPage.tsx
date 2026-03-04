@@ -29,6 +29,25 @@ const AcquiringAnalyticsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-8 px-2 md:px-0">
       <div className="max-w-5xl mx-auto space-y-10">
+        <button
+          type="button"
+          onClick={() => window.location.assign('/')}
+          style={{
+            marginBottom: 18,
+            padding: '10px 18px',
+            borderRadius: 10,
+            border: '2px solid #1e293b',
+            background: 'linear-gradient(90deg, #f1f5f9 0%, #e0e7ef 100%)',
+            color: '#1e293b',
+            fontWeight: 700,
+            fontSize: 15,
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(30,41,59,0.08)'
+          }}
+        >
+          ← Back to Page Selector
+        </button>
+
         <UploadSection
           onAnalyticsReady={setAnalytics}
           onLoadingChange={setLoading}

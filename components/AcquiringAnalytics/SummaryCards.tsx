@@ -90,16 +90,31 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ data, loading }) => {
   ];
 
   return (
-    <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {cards.map((card, i) => (
-        <div key={card.label} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md flex flex-col items-start gap-2 transition-all">
-          <div className="flex items-center gap-2 mb-1">
-            {icons[i]}
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">{card.label}</span>
+    <section className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {cards.map((card, i) => (
+          <div key={card.label} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md flex flex-col items-start gap-2 transition-all">
+            <div className="flex items-center gap-2 mb-1">
+              {icons[i]}
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">{card.label}</span>
+            </div>
+            <div className="text-3xl font-extrabold text-blue-700 animate-fade-in">{card.value}</div>
           </div>
-          <div className="text-3xl font-extrabold text-blue-700 animate-fade-in">{card.value}</div>
-        </div>
-      ))}
+        ))}
+      </div>
+      <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-600">
+        Rows loaded: <span className="font-semibold">{data.meta.rowsLoaded.toLocaleString()}</span> |
+        Processed: <span className="font-semibold">{data.meta.rowsProcessed.toLocaleString()}</span> |
+        Excluded: <span className="font-semibold">{data.meta.invalidRows.toLocaleString()}</span>
+        {(data.meta.invalidByReason.currencyMismatch > 0 || data.meta.invalidByReason.unknownChannel > 0) && (
+          <>
+            {' '}(
+            Currency mismatch: <span className="font-semibold">{data.meta.invalidByReason.currencyMismatch.toLocaleString()}</span>,{' '}
+            Unknown channel: <span className="font-semibold">{data.meta.invalidByReason.unknownChannel.toLocaleString()}</span>
+            )
+          </>
+        )}
+      </div>
     </section>
   );
 };
