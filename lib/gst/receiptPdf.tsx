@@ -70,6 +70,8 @@ const styles = StyleSheet.create({
   tableRow: { flexDirection: 'row', borderWidth: 1, borderTopWidth: 0, borderColor: '#374151' },
   cell: { paddingVertical: 4, paddingHorizontal: 5, fontSize: 9, borderRightWidth: 1, borderColor: '#374151' },
   cellLast: { borderRightWidth: 0 },
+  totalRow: { flexDirection: 'row', borderWidth: 1, borderTopWidth: 0, borderColor: '#374151', backgroundColor: '#f9fafb' },
+  totalLabel: { fontSize: 9, fontWeight: 700 },
   footer: {
     position: 'absolute',
     bottom: 12,
@@ -85,6 +87,14 @@ const styles = StyleSheet.create({
 });
 
 const money = (code: string, amount: number) => `${code} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmt = (amount: number) => amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatYmd = (date?: Date | null, fallback?: string) => {
+  if (!date || Number.isNaN(date.getTime())) return fallback || '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 const HEADER_IMAGE_SRC = '/gst/receipt-header.png';
 const FOOTER_IMAGE_SRC = '/gst/receipt-footer.png';
@@ -229,28 +239,56 @@ const ReceiptDocument: React.FC<{ input: ReceiptInput }> = ({ input }) => {
       <Page size="A4" style={styles.page}>
         {drawHeader(input, 2)}
         <View style={styles.contentTop}>
-          <Text style={styles.title}>Annexure A - Daily Summary</Text>
+          <Text style={styles.title}>Annexure A - Transaction Details</Text>
           <Text style={styles.subtitle}>Billing Currency: {input.bilCurrLabel} (code {input.bilCurrCode})</Text>
 
           <View style={styles.tableHeader}>
-            <Text style={[styles.cell, { width: '18%' }]}>Date</Text>
-            <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>Txn Cnt</Text>
-            <Text style={[styles.cell, { width: '18%', textAlign: 'right' }]}>Gross</Text>
-            <Text style={[styles.cell, { width: '18%', textAlign: 'right' }]}>MDR</Text>
-            <Text style={[styles.cell, { width: '18%', textAlign: 'right' }]}>GST</Text>
-            <Text style={[styles.cell, styles.cellLast, { width: '18%', textAlign: 'right' }]}>Net</Text>
+            <Text style={[styles.cell, { width: '12%' }]}>Req Date</Text>
+            <Text style={[styles.cell, { width: '14%' }]}>RRN</Text>
+            <Text style={[styles.cell, { width: '10%' }]}>Appr Code</Text>
+            <Text style={[styles.cell, { width: '18%' }]}>Card No</Text>
+            <Text style={[styles.cell, { width: '14%', textAlign: 'right' }]}>Appr Amt</Text>
+            <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>MDR</Text>
+            <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>GST</Text>
+            <Text style={[styles.cell, styles.cellLast, { width: '12%', textAlign: 'right' }]}>Net</Text>
           </View>
 
-          {input.dailyRows.map((row) => (
-            <View style={styles.tableRow} key={row.dateLabel}>
-              <Text style={[styles.cell, { width: '18%' }]}>{row.dateLabel}</Text>
-              <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>{row.txnCount}</Text>
-              <Text style={[styles.cell, { width: '18%', textAlign: 'right' }]}>{money(input.bilCurrLabel, row.gross)}</Text>
-              <Text style={[styles.cell, { width: '18%', textAlign: 'right' }]}>{money(input.bilCurrLabel, row.mdr)}</Text>
-              <Text style={[styles.cell, { width: '18%', textAlign: 'right' }]}>{money(input.bilCurrLabel, row.gst)}</Text>
-              <Text style={[styles.cell, styles.cellLast, { width: '18%', textAlign: 'right' }]}>{money(input.bilCurrLabel, row.net)}</Text>
-            </View>
-          ))}
+          {input.transactions
+            .slice()
+            .sort((a, b) => (a.reqDate?.getTime() || 0) - (b.reqDate?.getTime() || 0))
+            .map((row, idx) => (
+              <View style={styles.tableRow} key={`${row.rrn}-${row.reqDateRaw}-${idx}`}>
+                <Text style={[styles.cell, { width: '12%' }]}>{formatYmd(row.reqDate, row.reqDateRaw)}</Text>
+                <Text style={[styles.cell, { width: '14%' }]}>{row.rrn || ''}</Text>
+                <Text style={[styles.cell, { width: '10%' }]}>{row.apprCode || ''}</Text>
+                <Text style={[styles.cell, { width: '18%' }]}>{row.cardNo || ''}</Text>
+                <Text style={[styles.cell, { width: '14%', textAlign: 'right' }]}>{fmt(row.apprAmt)}</Text>
+                <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>{fmt(row.apprAmt * (input.mdrPct / 100))}</Text>
+                <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>{fmt(row.apprAmt * (input.mdrPct / 100) * (input.gstPct / 100))}</Text>
+                <Text style={[styles.cell, styles.cellLast, { width: '12%', textAlign: 'right' }]}>
+                  {fmt(row.apprAmt - (row.apprAmt * (input.mdrPct / 100) + row.apprAmt * (input.mdrPct / 100) * (input.gstPct / 100)))}
+                </Text>
+              </View>
+            ))}
+
+          {(() => {
+            const totalAppr = input.transactions.reduce((sum, row) => sum + (row.apprAmt || 0), 0);
+            const totalMdr = totalAppr * (input.mdrPct / 100);
+            const totalGst = totalMdr * (input.gstPct / 100);
+            const totalNet = totalAppr - (totalMdr + totalGst);
+            return (
+              <View style={styles.totalRow}>
+                <Text style={[styles.cell, { width: '12%' }]} />
+                <Text style={[styles.cell, { width: '14%' }]} />
+                <Text style={[styles.cell, { width: '10%' }]} />
+                <Text style={[styles.cell, { width: '18%' }, styles.totalLabel]}>Total</Text>
+                <Text style={[styles.cell, { width: '14%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalAppr)}</Text>
+                <Text style={[styles.cell, { width: '10%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalMdr)}</Text>
+                <Text style={[styles.cell, { width: '10%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalGst)}</Text>
+                <Text style={[styles.cell, styles.cellLast, { width: '12%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalNet)}</Text>
+              </View>
+            );
+          })()}
 
         </View>
         {drawFooter(input)}

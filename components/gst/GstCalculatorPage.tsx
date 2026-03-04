@@ -188,6 +188,7 @@ const GstCalculatorPage: React.FC<GstCalculatorPageProps> = ({ onNavigate }) => 
   }
 
   function cleanTxnRow(row: Record<string, string>): GstTransactionRow | null {
+    const safeTrim = (val: unknown) => (val == null ? "" : String(val).trim());
     // Drop empty/unnamed columns
     Object.keys(row).forEach((k) => {
       if (!k || !k.trim()) delete row[k];
@@ -199,23 +200,32 @@ const GstCalculatorPage: React.FC<GstCalculatorPageProps> = ({ onNavigate }) => 
     if ((row["Merchant"] ?? "") === "" && (row["Appr Amt"] ?? "") === "" && (row["Card No"] ?? "").toUpperCase().includes("TOTAL")) return null;
 
     // Extract fields
-    const mid = (row["Merchant"] ?? "").trim();
-    const merchantName = (row["Merchant Name"] ?? "").trim();
-    const terminal = (row["Terminal"] ?? "").trim();
-    let rrn = (row["RRN"] ?? "").trim();
+    const mid = safeTrim(row["Merchant"]);
+    const merchantName = safeTrim(row["Merchant Name"]);
+    const terminal = safeTrim(row["Terminal"]);
+    let rrn = safeTrim(row["RRN"]);
     if (/null$/i.test(rrn)) rrn = rrn.replace(/null$/i, "").trim();
-    const apprCode = (row["Appr Code"] ?? "").trim();
-    const cardNo = (row["Card No"] ?? "").trim();
-    const reqDateRaw = (row["Req Date"] ?? "").trim();
-    const bilCurr = (row["Bil Curr"] ?? "").trim();
+    const apprCode = safeTrim(row["Appr Code"]);
+    const cardNo = safeTrim(row["Card No"]);
+    const reqDateRaw = safeTrim(row["Req Date"]);
+    const bilCurr = safeTrim(row["Bil Curr"]);
     // Amount
     let apprAmt = NaN;
     if (row["Appr Amt"] != null) {
-      apprAmt = Number.parseFloat(row["Appr Amt"].replace(/,/g, ""));
+      const amtRaw = typeof row["Appr Amt"] === "number" ? String(row["Appr Amt"]) : String(row["Appr Amt"]);
+      apprAmt = Number.parseFloat(amtRaw.replace(/,/g, ""));
     }
     // Date parsing
     let reqDate: Date | null = null;
     if (reqDateRaw) {
+      const numericExcel = Number(reqDateRaw);
+      if (Number.isFinite(numericExcel) && numericExcel > 10000) {
+        // Excel serial date (days since 1899-12-30)
+        const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+        reqDate = new Date(excelEpoch.getTime() + numericExcel * 24 * 60 * 60 * 1000);
+      }
+    }
+    if (reqDateRaw && (!reqDate || Number.isNaN(reqDate.getTime()))) {
       // Try DD/MM/YYYY or YYYY/MM/DD
       const dmy = reqDateRaw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
       const ymd = reqDateRaw.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
@@ -260,6 +270,8 @@ const GstCalculatorPage: React.FC<GstCalculatorPageProps> = ({ onNavigate }) => 
     const processRows = (rows: any[], fileType: string) => {
       const gstRows: GstTransactionRow[] = [];
       for (const rawRow of rows) {
+        const isRowEmpty = Object.values(rawRow).every((v) => v == null || String(v).trim() === "");
+        if (isRowEmpty) continue;
         Object.keys(rawRow).forEach((k) => { if (!k || !k.trim()) delete rawRow[k]; });
         const cleaned = cleanTxnRow(rawRow);
         if (!cleaned) {
@@ -322,7 +334,41 @@ const GstCalculatorPage: React.FC<GstCalculatorPageProps> = ({ onNavigate }) => 
       });
       setCsvLoading(false);
       if (event.target) event.target.value = "";
+      return;
     }
+
+    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      try {
+        const XLSX = await import('xlsx');
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as any[][];
+        const [rawHeaders, ...rawData] = rows;
+        const headers = (rawHeaders || []).map((h) => canonicalizeHeader(String(h ?? "")));
+        const mapped = rawData.map((row) => {
+          const obj: Record<string, any> = {};
+          headers.forEach((h, idx) => {
+            if (!h) return;
+            const val = row?.[idx];
+            obj[h] = typeof val === "string" ? val.trim() : val;
+          });
+          return obj;
+        });
+        processRows(mapped as any[], 'Excel');
+      } catch (error: any) {
+        setRows([]);
+        setImportMessage(`Excel import failed: ${error?.message || String(error)}`);
+      } finally {
+        setCsvLoading(false);
+        if (event.target) event.target.value = "";
+      }
+      return;
+    }
+    setCsvLoading(false);
+    setImportMessage('Unsupported file type. Please upload CSV or Excel.');
+    if (event.target) event.target.value = "";
   };
 
     const onSelectMid = (value: string) => {
