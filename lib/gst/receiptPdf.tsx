@@ -98,17 +98,18 @@ const drawHeader = (input: ReceiptInput, pageNum: number) => (
 );
 
 // Footer for all pages
-const drawFooter = (input: ReceiptInput, pageNum: number, totalPages: number) => (
+const drawFooter = (input: ReceiptInput) => (
   <View style={styles.footer} fixed>
     <Image style={styles.footerImage} src={FOOTER_IMAGE_SRC} />
-    <Text style={styles.footerPage}>Page {pageNum} of {totalPages}</Text>
+    <Text
+      style={styles.footerPage}
+      render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
+    />
   </View>
 );
 const ReceiptDocument: React.FC<{ input: ReceiptInput }> = ({ input }) => {
   // Settlement month logic
   // ...existing code...
-  const totalPages = 2;
-
   // Table style for certificate summary and merchant info
   const certTable = {
     borderWidth: 1,
@@ -221,7 +222,7 @@ const ReceiptDocument: React.FC<{ input: ReceiptInput }> = ({ input }) => {
             <Text style={styles.signOrg}>For Bank of Bhutan Ltd</Text>
           </View>
         </View>
-        {drawFooter(input, 1, totalPages)}
+        {drawFooter(input)}
       </Page>
 
       {/* Page 2: Annexure */}
@@ -252,7 +253,7 @@ const ReceiptDocument: React.FC<{ input: ReceiptInput }> = ({ input }) => {
           ))}
 
         </View>
-        {drawFooter(input, 2, totalPages)}
+        {drawFooter(input)}
       </Page>
     </Document>
   );
