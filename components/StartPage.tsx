@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface StartPageProps {
-  onNavigate: (path: '/report-analysis' | '/gst-calculator') => void;
+  onNavigate: (path: '/report-analysis' | '/gst-calculator' | '/pnl-analysis') => void;
 }
 
 const StartPage: React.FC<StartPageProps> = ({ onNavigate }) => {
@@ -87,6 +87,24 @@ const StartPage: React.FC<StartPageProps> = ({ onNavigate }) => {
           >
             <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 2 }}>GST Calculator</div>
             <div style={{ fontSize: 13, opacity: 0.95 }}>Import monthly PDF and generate merchant GST deduction receipt.</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('/pnl-analysis')}
+            style={{
+              border: '2px solid #0f766e',
+              borderRadius: 14,
+              padding: '16px 18px',
+              background: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)',
+              color: '#ffffff',
+              textAlign: 'left',
+              cursor: 'pointer',
+              boxShadow: '0 10px 20px rgba(13, 148, 136, 0.28)'
+            }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 2 }}>P&amp;L Analysis</div>
+            <div style={{ fontSize: 13, opacity: 0.95 }}>Upload monthly income and expense sheets to calculate ADC P&amp;L.</div>
           </button>
         </div>
       </div>

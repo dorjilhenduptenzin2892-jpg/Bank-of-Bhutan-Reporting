@@ -95,6 +95,8 @@ const formatYmd = (date?: Date | null, fallback?: string) => {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
+const formatMonthLabel = (date: Date) => date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+const GST_NUMBER = 'C10035414';
 
 const HEADER_IMAGE_SRC = '/gst/receipt-header.png';
 const FOOTER_IMAGE_SRC = '/gst/receipt-footer.png';
@@ -118,8 +120,18 @@ const drawFooter = (input: ReceiptInput) => (
   </View>
 );
 const ReceiptDocument: React.FC<{ input: ReceiptInput }> = ({ input }) => {
-  // Settlement month logic
-  // ...existing code...
+  const groups = (() => {
+    const map = new Map<string, GstTransactionRow[]>();
+    for (const row of input.transactions || []) {
+      if (!row.reqDate || Number.isNaN(row.reqDate.getTime())) continue;
+      const key = `${row.reqDate.getFullYear()}-${String(row.reqDate.getMonth() + 1).padStart(2, '0')}`;
+      const arr = map.get(key) || [];
+      arr.push(row);
+      map.set(key, arr);
+    }
+    if (!map.size) map.set('ALL', input.transactions || []);
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  })();
   // Table style for certificate summary and merchant info
   const certTable = {
     borderWidth: 1,
@@ -150,149 +162,146 @@ const ReceiptDocument: React.FC<{ input: ReceiptInput }> = ({ input }) => {
     fontSize: 10,
   };
 
-  // Settlement month value
-  let maxDate: Date | null = null;
-  if (input.transactions && input.transactions.length > 0) {
-    maxDate = input.transactions.reduce((max, row) => {
-      if (row.reqDate && (!max || row.reqDate > max)) return row.reqDate;
-      return max;
-    }, null as Date | null);
-  }
-  const settlementMonth = maxDate
-    ? maxDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })
-    : input.generatedAt.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-
   return (
     <Document>
-      {/* Page 1: Certificate */}
-      <Page size="A4" style={styles.page}>
-        {drawHeader(input, 1)}
-        <View style={styles.contentTop}>
-          {/* Header aligned left */}
-          <Text style={{ ...styles.title, textAlign: 'left', marginBottom: 10 }}>Merchant Monthly GST Deduction Certificate</Text>
+      {groups.map(([key, txns]) => {
+        const validTxns = txns.filter((t) => t && Number.isFinite(t.apprAmt));
+        const totalAppr = validTxns.reduce((sum, row) => sum + (row.apprAmt || 0), 0);
+        const totalMdr = totalAppr * (input.mdrPct / 100);
+        const totalGst = totalMdr * (input.gstPct / 100);
+        const totalNet = totalAppr - (totalMdr + totalGst);
+        const settlementMonth =
+          key === 'ALL'
+            ? input.generatedAt.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+            : formatMonthLabel(new Date(`${key}-01T00:00:00`));
 
-          {/* Certificate info and summary table with all borders */}
-          <View style={certTable}>
-            <View style={certRow}>
-              <Text style={certCell}>Settlement Month</Text>
-              <Text style={certCellLast}>{settlementMonth}</Text>
-            </View>
-            <View style={certRow}>
-              <Text style={certCell}>Merchant Name</Text>
-              <Text style={certCellLast}>{input.merchantName || 'N/A'}</Text>
-            </View>
-            <View style={certRow}>
-              <Text style={certCell}>Merchant ID (MID)</Text>
-              <Text style={certCellLast}>{input.merchantId}</Text>
-            </View>
-            <View style={certRow}>
-              <Text style={certCell}>Terminal Types</Text>
-              <Text style={certCellLast}>{input.channelType}</Text>
-            </View>
-            <View style={[certRow, { backgroundColor: '#f3f4f6' }]}> 
-              <Text style={{ ...certCell, fontWeight: 700 }}>Particulars</Text>
-              <Text style={{ ...certCellLast, fontWeight: 700 }}>Amount ({input.bilCurrLabel})</Text>
-            </View>
-            <View style={certRow}>
-              <Text style={certCell}>Total Transaction</Text>
-              <Text style={certCellLast}>{money(input.bilCurrLabel, input.gross)}</Text>
-            </View>
-            <View style={certRow}>
-              <Text style={certCell}>Total Bank Commission (MDR {input.mdrPct.toFixed(2)}%)</Text>
-              <Text style={certCellLast}>{money(input.bilCurrLabel, input.mdrAmount)}</Text>
-            </View>
-            <View style={certRow}>
-              <Text style={certCell}>Total GST on Commission (5.00%)</Text>
-              <Text style={certCellLast}>{money(input.bilCurrLabel, input.gstAmount)}</Text>
-            </View>
-            <View style={certRow}>
-              <Text style={certCell}>Total Deduction</Text>
-              <Text style={certCellLast}>{money(input.bilCurrLabel, input.totalDeduction)}</Text>
-            </View>
-            <View style={certRow}>
-              <Text style={{ ...certCell, fontWeight: 700 }}>Net Amount Paid to Merchant</Text>
-              <Text style={{ ...certCellLast, fontWeight: 700 }}>{money(input.bilCurrLabel, input.netPayable)}</Text>
-            </View>
-          </View>
+        return (
+          <React.Fragment key={key}>
+            {/* Certificate */}
+            <Page size="A4" style={styles.page}>
+              {drawHeader(input, 1)}
+              <View style={styles.contentTop}>
+                <Text style={{ ...styles.title, textAlign: 'left', marginBottom: 10 }}>Merchant Monthly GST Deduction Certificate</Text>
 
-          <View style={styles.declaration}>
-            <Text style={styles.sectionTitle}>Declaration</Text>
-            <Text>
-              This is to certify that GST amounting to <Text style={{ fontWeight: 700 }}>{input.bilCurrLabel} {input.gstAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} </Text>
-              has been deducted for the above settlement month.
-            </Text>
-            <Text>
-              The GST collected is remitted to the relevant authority.
-              This certificate may be used by the merchant as proof of GST deduction.
-            </Text>
-          </View>
+                <View style={certTable}>
+                  <View style={certRow}>
+                    <Text style={certCell}>Settlement Month</Text>
+                    <Text style={certCellLast}>{settlementMonth}</Text>
+                  </View>
+                  <View style={certRow}>
+                    <Text style={certCell}>Merchant Name</Text>
+                    <Text style={certCellLast}>{input.merchantName || 'N/A'}</Text>
+                  </View>
+                  <View style={certRow}>
+                    <Text style={certCell}>Merchant ID (MID)</Text>
+                    <Text style={certCellLast}>{input.merchantId}</Text>
+                  </View>
+                  <View style={certRow}>
+                    <Text style={certCell}>GST Number</Text>
+                    <Text style={certCellLast}>{GST_NUMBER}</Text>
+                  </View>
+                  <View style={certRow}>
+                    <Text style={certCell}>Terminal Types</Text>
+                    <Text style={certCellLast}>{input.channelType}</Text>
+                  </View>
+                  <View style={[certRow, { backgroundColor: '#f3f4f6' }]}> 
+                    <Text style={{ ...certCell, fontWeight: 700 }}>Particulars</Text>
+                    <Text style={{ ...certCellLast, fontWeight: 700 }}>Amount ({input.bilCurrLabel})</Text>
+                  </View>
+                  <View style={certRow}>
+                    <Text style={certCell}>Total Transaction</Text>
+                    <Text style={certCellLast}>{money(input.bilCurrLabel, totalAppr)}</Text>
+                  </View>
+                  <View style={certRow}>
+                    <Text style={certCell}>Total Bank Commission (MDR {input.mdrPct.toFixed(2)}%)</Text>
+                    <Text style={certCellLast}>{money(input.bilCurrLabel, totalMdr)}</Text>
+                  </View>
+                  <View style={certRow}>
+                    <Text style={certCell}>Total GST on Commission ({input.gstPct.toFixed(2)}%)</Text>
+                    <Text style={certCellLast}>{money(input.bilCurrLabel, totalGst)}</Text>
+                  </View>
+                  <View style={certRow}>
+                    <Text style={certCell}>Total Deduction</Text>
+                    <Text style={certCellLast}>{money(input.bilCurrLabel, totalMdr + totalGst)}</Text>
+                  </View>
+                  <View style={certRow}>
+                    <Text style={{ ...certCell, fontWeight: 700 }}>Net Amount Paid to Merchant</Text>
+                    <Text style={{ ...certCellLast, fontWeight: 700 }}>{money(input.bilCurrLabel, totalNet)}</Text>
+                  </View>
+                </View>
 
-          <View style={styles.signBlock}>
-            <Text style={styles.signLabel}>Authorized Signatory</Text>
-            <Text style={styles.signOrg}>For Bank of Bhutan Ltd</Text>
-          </View>
-        </View>
-        {drawFooter(input)}
-      </Page>
+                <View style={styles.declaration}>
+                  <Text style={styles.sectionTitle}>Declaration</Text>
+                  <Text>
+                    This is to certify that GST amounting to <Text style={{ fontWeight: 700 }}>{input.bilCurrLabel} {totalGst.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} </Text>
+                    has been deducted for the above settlement month.
+                  </Text>
+                  <Text>
+                    The GST collected is remitted to the relevant authority.
+                    This certificate may be used by the merchant as proof of GST deduction.
+                  </Text>
+                </View>
 
-      {/* Page 2: Annexure */}
-      <Page size="A4" style={styles.page}>
-        {drawHeader(input, 2)}
-        <View style={styles.contentTop}>
-          <Text style={styles.title}>Annexure A - Transaction Details</Text>
-          <Text style={styles.subtitle}>Billing Currency: {input.bilCurrLabel} (code {input.bilCurrCode})</Text>
-
-          <View style={styles.tableHeader}>
-            <Text style={[styles.cell, { width: '12%' }]}>Req Date</Text>
-            <Text style={[styles.cell, { width: '14%' }]}>RRN</Text>
-            <Text style={[styles.cell, { width: '10%' }]}>Appr Code</Text>
-            <Text style={[styles.cell, { width: '18%' }]}>Card No</Text>
-            <Text style={[styles.cell, { width: '14%', textAlign: 'right' }]}>Appr Amt</Text>
-            <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>MDR</Text>
-            <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>GST</Text>
-            <Text style={[styles.cell, styles.cellLast, { width: '12%', textAlign: 'right' }]}>Net</Text>
-          </View>
-
-          {input.transactions
-            .slice()
-            .sort((a, b) => (a.reqDate?.getTime() || 0) - (b.reqDate?.getTime() || 0))
-            .map((row, idx) => (
-              <View style={styles.tableRow} key={`${row.rrn}-${row.reqDateRaw}-${idx}`}>
-                <Text style={[styles.cell, { width: '12%' }]}>{formatYmd(row.reqDate, row.reqDateRaw)}</Text>
-                <Text style={[styles.cell, { width: '14%' }]}>{row.rrn || ''}</Text>
-                <Text style={[styles.cell, { width: '10%' }]}>{row.apprCode || ''}</Text>
-                <Text style={[styles.cell, { width: '18%' }]}>{row.cardNo || ''}</Text>
-                <Text style={[styles.cell, { width: '14%', textAlign: 'right' }]}>{fmt(row.apprAmt)}</Text>
-                <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>{fmt(row.apprAmt * (input.mdrPct / 100))}</Text>
-                <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>{fmt(row.apprAmt * (input.mdrPct / 100) * (input.gstPct / 100))}</Text>
-                <Text style={[styles.cell, styles.cellLast, { width: '12%', textAlign: 'right' }]}>
-                  {fmt(row.apprAmt - (row.apprAmt * (input.mdrPct / 100) + row.apprAmt * (input.mdrPct / 100) * (input.gstPct / 100)))}
-                </Text>
+                <View style={styles.signBlock}>
+                  <Text style={styles.signLabel}>Authorized Signatory</Text>
+                  <Text style={styles.signOrg}>For Bank of Bhutan Ltd</Text>
+                </View>
               </View>
-            ))}
+              {drawFooter(input)}
+            </Page>
 
-          {(() => {
-            const totalAppr = input.transactions.reduce((sum, row) => sum + (row.apprAmt || 0), 0);
-            const totalMdr = totalAppr * (input.mdrPct / 100);
-            const totalGst = totalMdr * (input.gstPct / 100);
-            const totalNet = totalAppr - (totalMdr + totalGst);
-            return (
-              <View style={styles.totalRow}>
-                <Text style={[styles.cell, { width: '12%' }]} />
-                <Text style={[styles.cell, { width: '14%' }]} />
-                <Text style={[styles.cell, { width: '10%' }]} />
-                <Text style={[styles.cell, { width: '18%' }, styles.totalLabel]}>Total</Text>
-                <Text style={[styles.cell, { width: '14%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalAppr)}</Text>
-                <Text style={[styles.cell, { width: '10%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalMdr)}</Text>
-                <Text style={[styles.cell, { width: '10%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalGst)}</Text>
-                <Text style={[styles.cell, styles.cellLast, { width: '12%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalNet)}</Text>
+            {/* Annexure */}
+            <Page size="A4" style={styles.page}>
+              {drawHeader(input, 2)}
+              <View style={styles.contentTop}>
+                <Text style={styles.title}>Annexure A - Transaction Details</Text>
+                <Text style={styles.subtitle}>Billing Currency: {input.bilCurrLabel} (code {input.bilCurrCode})</Text>
+
+                <View style={styles.tableHeader}>
+                  <Text style={[styles.cell, { width: '12%' }]}>Req Date</Text>
+                  <Text style={[styles.cell, { width: '14%' }]}>RRN</Text>
+                  <Text style={[styles.cell, { width: '10%' }]}>Appr Code</Text>
+                  <Text style={[styles.cell, { width: '18%' }]}>Card No</Text>
+                  <Text style={[styles.cell, { width: '14%', textAlign: 'right' }]}>Appr Amt</Text>
+                  <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>MDR</Text>
+                  <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>GST</Text>
+                  <Text style={[styles.cell, styles.cellLast, { width: '12%', textAlign: 'right' }]}>Net</Text>
+                </View>
+
+                {validTxns
+                  .slice()
+                  .sort((a, b) => (a.reqDate?.getTime() || 0) - (b.reqDate?.getTime() || 0))
+                  .map((row, idx) => (
+                    <View style={styles.tableRow} key={`${row.rrn}-${row.reqDateRaw}-${idx}`}>
+                      <Text style={[styles.cell, { width: '12%' }]}>{formatYmd(row.reqDate, row.reqDateRaw)}</Text>
+                      <Text style={[styles.cell, { width: '14%' }]}>{row.rrn || ''}</Text>
+                      <Text style={[styles.cell, { width: '10%' }]}>{row.apprCode || ''}</Text>
+                      <Text style={[styles.cell, { width: '18%' }]}>{row.cardNo || ''}</Text>
+                      <Text style={[styles.cell, { width: '14%', textAlign: 'right' }]}>{fmt(row.apprAmt)}</Text>
+                      <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>{fmt(row.apprAmt * (input.mdrPct / 100))}</Text>
+                      <Text style={[styles.cell, { width: '10%', textAlign: 'right' }]}>{fmt(row.apprAmt * (input.mdrPct / 100) * (input.gstPct / 100))}</Text>
+                      <Text style={[styles.cell, styles.cellLast, { width: '12%', textAlign: 'right' }]}>
+                        {fmt(row.apprAmt - (row.apprAmt * (input.mdrPct / 100) + row.apprAmt * (input.mdrPct / 100) * (input.gstPct / 100)))}
+                      </Text>
+                    </View>
+                  ))}
+
+                <View style={styles.totalRow}>
+                  <Text style={[styles.cell, { width: '12%' }]} />
+                  <Text style={[styles.cell, { width: '14%' }]} />
+                  <Text style={[styles.cell, { width: '10%' }]} />
+                  <Text style={[styles.cell, { width: '18%' }, styles.totalLabel]}>Total</Text>
+                  <Text style={[styles.cell, { width: '14%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalAppr)}</Text>
+                  <Text style={[styles.cell, { width: '10%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalMdr)}</Text>
+                  <Text style={[styles.cell, { width: '10%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalGst)}</Text>
+                  <Text style={[styles.cell, styles.cellLast, { width: '12%', textAlign: 'right' }, styles.totalLabel]}>{fmt(totalNet)}</Text>
+                </View>
               </View>
-            );
-          })()}
-
-        </View>
-        {drawFooter(input)}
-      </Page>
+              {drawFooter(input)}
+            </Page>
+          </React.Fragment>
+        );
+      })}
     </Document>
   );
 };

@@ -17,15 +17,17 @@ import { Button } from './components/ui/Button';
 import OverviewAcquiringTable from './components/OverviewAcquiringTable';
 import StartPage from './components/StartPage';
 import GstCalculatorPage from './components/gst/GstCalculatorPage';
+import PnlAnalysisPage from './components/pnl/PnlAnalysisPage';
 
 const UI_VIEW = true;
 const UI_BUILD = '2026-02-04.4';
-type AppRoute = '/start' | '/report-analysis' | '/gst-calculator';
+type AppRoute = '/start' | '/report-analysis' | '/gst-calculator' | '/pnl-analysis';
 
 const normalizeRoute = (pathname: string): AppRoute => {
   if (pathname === '/' || pathname === '/start' || pathname === '/home') return '/start';
   if (pathname === '/gst-calculator') return '/gst-calculator';
   if (pathname === '/report-analysis') return '/report-analysis';
+  if (pathname === '/pnl-analysis') return '/pnl-analysis';
   return '/start';
 };
 
@@ -381,6 +383,10 @@ const App: React.FC = () => {
 
   if (route === '/gst-calculator') {
     return <GstCalculatorPage onNavigate={(path) => navigate(path)} />;
+  }
+
+  if (route === '/pnl-analysis') {
+    return <PnlAnalysisPage onNavigate={(path) => navigate(path)} />;
   }
 
   return (
